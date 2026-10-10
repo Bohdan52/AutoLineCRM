@@ -15,6 +15,14 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\AutoLineCRM.CatalogService\AutoLineCRM.CatalogService.csproj" />
+    <ProjectReference Include="..\AutoLineCRM.PaymentService\AutoLineCRM.PaymentService.csproj" />
+    <ProjectReference Include="..\AutoLineCRM.SalesService\AutoLineCRM.SalesService.csproj" />
+    <ProjectReference Include="..\AutoLineCRM.SharedKernel\AutoLineCRM.SharedKernel.csproj" />
+    <ProjectReference Include="..\AutoLineCRM.UserAuthService\AutoLineCRM.UserAuthService.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
     <Using Include="Xunit" />
   </ItemGroup>
 

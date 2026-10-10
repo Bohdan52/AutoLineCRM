@@ -11,4 +11,9 @@
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="10.0.12" />
     <PackageReference Include="RabbitMQ.Client" Version="7.2.2" />
   </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\AutoLineCRM.EventBus\AutoLineCRM.EventBus.csproj" />
+    <ProjectReference Include="..\AutoLineCRM.SharedKernel\AutoLineCRM.SharedKernel.csproj" />
+  </ItemGroup>
 </Project>

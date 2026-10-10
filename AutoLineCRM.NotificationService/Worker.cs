@@ -1,17 +1,21 @@
-namespace AutoLineCRM.NotificationService
+﻿namespace AutoLineCRM.NotificationService;
+
+public class Worker : BackgroundService
 {
-    public class Worker(ILogger<Worker> logger) : BackgroundService
+    private readonly ILogger<Worker> _logger;
+
+    public Worker(ILogger<Worker> logger)
     {
-        protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+        _logger = logger;
+    }
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        while (!stoppingToken.IsCancellationRequested)
         {
-            while (!stoppingToken.IsCancellationRequested)
-            {
-                if (logger.IsEnabled(LogLevel.Information))
-                {
-                    logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
-                }
-                await Task.Delay(1000, stoppingToken);
-            }
+            _logger.LogInformation("Notification worker running at: {time}",
+                DateTimeOffset.Now);
+            await Task.Delay(5000, stoppingToken);
         }
     }
 }
