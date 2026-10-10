@@ -1,0 +1,6 @@
+@AutoLineCRM.ApiGateway_HostAddress = http://localhost:5111
+
+GET {{AutoLineCRM.ApiGateway_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

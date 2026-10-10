@@ -1,0 +1,36 @@
+<Solution>
+  <Folder Name="/src/" />
+  <Folder Name="/src/ApiGateway/">
+    <Project Path="AutoLineCRM.ApiGateway/AutoLineCRM.ApiGateway.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/" />
+  <Folder Name="/src/BuildingBlocks/EventBus/">
+    <Project Path="AutoLineCRM.EventBus/AutoLineCRM.EventBus.csproj" />
+  </Folder>
+  <Folder Name="/src/BuildingBlocks/SharedKernel/">
+    <Project Path="AutoLineCRM.SharedKernel/AutoLineCRM.SharedKernel.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/" />
+  <Folder Name="/src/Services/CatalogService/">
+    <Project Path="AutoLineCRM.CatalogService/AutoLineCRM.CatalogService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/NotificationService/">
+    <Project Path="AutoLineCRM.NotificationService/AutoLineCRM.NotificationService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/PaymentService/">
+    <Project Path="AutoLineCRM.PaymentService/AutoLineCRM.PaymentService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/SalesService/">
+    <Project Path="AutoLineCRM.SalesService/AutoLineCRM.SalesService.csproj" />
+  </Folder>
+  <Folder Name="/src/Services/UserAuthService/">
+    <Project Path="AutoLineCRM.UserAuthService/AutoLineCRM.UserAuthService.csproj" />
+  </Folder>
+  <Folder Name="/src/Web/" />
+  <Folder Name="/src/Web/BlazorClient/">
+    <Project Path="AutoLineCRM.BlazorClient/AutoLineCRM.BlazorClient.csproj" />
+  </Folder>
+  <Folder Name="/tests/">
+    <Project Path="AutoLineCRM.Tests/AutoLineCRM.Tests.csproj" />
+  </Folder>
+</Solution>

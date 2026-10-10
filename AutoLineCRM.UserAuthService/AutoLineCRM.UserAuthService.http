@@ -1,0 +1,6 @@
+@AutoLineCRM.UserAuthService_HostAddress = http://localhost:5148
+
+GET {{AutoLineCRM.UserAuthService_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
