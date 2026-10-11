@@ -12,9 +12,11 @@ public class Manager: User
     public ICollection<Request> ProcessedRequests { get; set; } = new List<Request>();
     public ICollection<Contract> CreatedContracts { get; set; } = new List<Contract>();
 
+    public abstract string GetRoleName() => "Manager";
+
     public Manager ()
     {
         Role = UserRole.Manager;
     }
-    public override string ToString() => "Manager";
+    
 }

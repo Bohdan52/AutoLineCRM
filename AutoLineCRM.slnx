@@ -10,34 +10,6 @@
   <Folder Name="/src/BuildingBlocks/SharedKernel/">
     <Project Path="AutoLineCRM.SharedKernel/AutoLineCRM.SharedKernel.csproj" />
   </Folder>
-  <Folder Name="/src/BuildingBlocks/SharedKernel/Entities/">
-    <File Path="Administrator.cs" />
-    <File Path="Car.cs" />
-    <File Path="Client.cs" />
-    <File Path="Contracct.cs" />
-    <File Path="Manager.cs" />
-    <File Path="Payment.cs" />
-    <File Path="Request.cs" />
-    <File Path="Review.cs" />
-    <File Path="User.cs" />
-  </Folder>
-  <Folder Name="/src/BuildingBlocks/SharedKernel/Enums/">
-    <File Path="CarStatus.cs" />
-    <File Path="PaymentMethod.cs" />
-    <File Path="PaymentStatus.cs" />
-    <File Path="RequestStatus.cs" />
-    <File Path="UserRole.cs" />
-  </Folder>
-  <Folder Name="/src/BuildingBlocks/SharedKernel/Events/">
-    <File Path="ContractSignedEvent.cs" />
-    <File Path="IDomainEvent.cs" />
-    <File Path="PaymentProcessedEvent.cs" />
-    <File Path="RequestCreatedEvent.cs" />
-  </Folder>
-  <Folder Name="/src/BuildingBlocks/SharedKernel/Interfaces/">
-    <File Path="INotificationSender.cs" />
-    <File Path="IPaymentGateway.cs" />
-  </Folder>
   <Folder Name="/src/Services/" />
   <Folder Name="/src/Services/CatalogService/">
     <Project Path="AutoLineCRM.CatalogService/AutoLineCRM.CatalogService.csproj" />
