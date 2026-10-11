@@ -1,6 +1,15 @@
+using AutoLineCRM.CatalogService.Data;
+using AutoLineCRM.CatalogService.Services;
+using Microsoft.EntityFrameworkCore;
+using Scalar.AspNetCore;
+
 var builder = WebApplication.CreateBuilder(args);
 
 // Add services to the container.
+builder.Services.AddDbContext<CatalogDbContext>(o =>
+    o.UseNpgsql(builder.Configuration.GetConnectionString("CatalogDb")));
+
+builder.Services.AddScoped<CarService>();
 
 builder.Services.AddControllers();
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
@@ -12,6 +21,7 @@ var app = builder.Build();
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
+    app.MapScalarApiReference();   // ← Scalar UI на /scalar/v1
 }
 
 app.UseHttpsRedirection();
