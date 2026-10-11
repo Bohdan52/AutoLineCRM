@@ -8,8 +8,8 @@ public class Contract
     public DateTime? SignedAt { get; set; }
     public decimal Amount { get; set; }
 
-    public string? DigitalSignature { get; set; }   
-    public bool IsSigned { get; set; } = SignedAt.HasValue;
+    public string? DigitalSignature { get; set; }
+    public bool IsSigned => SignedAt.HasValue;
 
     public int RequestId { get; set; }
     public Request Request { get; set; } = null!;

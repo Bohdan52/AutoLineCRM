@@ -11,7 +11,7 @@ public abstract class User
 
     public UserRole Role { get; protected set; }
 
-    public DateTime CreatedAt { get; set; } = DateTime.UTCNow;
+    public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
     public bool IsActive { get; set; } = true;
 
     public abstract string GetRoleName();

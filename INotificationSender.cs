@@ -1,4 +1,4 @@
-﻿namespace AutoLineCRM.SharedKernel.Enums;
+﻿namespace AutoLineCRM.SharedKernel.Interfaces;
 
 public interface INotificationSender
 {

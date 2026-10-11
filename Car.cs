@@ -16,7 +16,7 @@ public class Car
 
     public DateTime AddedAt { get; set; } = DateTime.UtcNow;
 
-    public ICollecction<CarImage> Images { get; set; } = new List<CarImage>();
+    public ICollection<CarImage> Images { get; set; } = new List<CarImage>();
     
     public override string ToString() => $"[{Id}] {Brand} {Model} ({Year}) — {Price:C} — {Status}";
 }

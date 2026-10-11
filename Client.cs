@@ -8,14 +8,15 @@ public class Client : User
     public string Phone { get; set; } = string.Empty;
     public string PassportData { get; set; } = string.Empty;
 
-    public ICollecction<Request> Requests { get; set; } = new List<Request>();
-    public ICollecction<Review> Reviews{ get; set; } = new List<Review>();
-    public ICollecction<Contract> Contracts{ get; set; } = new List<Contract>();
+    public ICollection<Request> Requests { get; set; } = new List<Request>();
+    public ICollection<Review> Reviews{ get; set; } = new List<Review>();
+    public ICollection<Contract> Contracts{ get; set; } = new List<Contract>();
+
+    public abstract string GetRoleName() => "Client";
 
     public Client()
     {
         Role = UserRole.Client;
     }
-
-    public override string ToString() => "Client";
+ 
 }

@@ -2,6 +2,6 @@
 
 public interface IDomainEvent
 {
-    Guid EventID { get; }
-    DateTime OccuredAt { get; }
+    Guid EventId { get; }
+    DateTime OccurredAt { get; }
 }
