@@ -1,0 +1,75 @@
+﻿@page "/catalog"
+@inject HttpClient Http
+
+<h3>Каталог автомобілів</h3>
+
+@if (cars == null)
+{
+    <p><em>Завантаження...</em></p>
+}
+else if (!cars.Any())
+{
+    <p>Автомобілів поки немає.</p>
+}
+else
+{
+    <table class="table table-striped">
+        <thead>
+            <tr>
+                <th>Бренд</th>
+                <th>Модель</th>
+                <th>Рік</th>
+                <th>Ціна</th>
+                <th>Статус</th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var car in cars)
+            {
+                <tr>
+                    <td>@car.Brand</td>
+                    <td>@car.Model</td>
+                    <td>@car.Year</td>
+                    <td>@car.Price.ToString("C")</td>
+                    <td>@GetStatusName(car.Status)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+}
+
+@code {
+    private List<CarDto>? cars;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7085/api/cars");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+    }
+
+    private string GetStatusName(int status) => status switch
+    {
+        0 => "В наявності",
+        1 => "Заброньовано",
+        2 => "Продано",
+        3 => "Архівовано",
+        _ => "Невідомо"
+    };
+
+    public class CarDto
+    {
+        public int Id { get; set; }
+        public string Brand { get; set; } = "";
+        public string Model { get; set; } = "";
+        public int Year { get; set; }
+        public decimal Price { get; set; }
+
+        public int Status { get; set; }
+    }
+}
