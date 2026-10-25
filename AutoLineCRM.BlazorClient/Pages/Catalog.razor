@@ -51,7 +51,7 @@ else
     {
         try
         {
-            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7085/api/cars");
+            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7029/api/cars");
         }
         catch (Exception ex)
         {
@@ -64,7 +64,7 @@ else
         try
         {
             var requestDto = new { CarId = carId, ClientId = 1 };
-            var response = await Http.PostAsJsonAsync("https://localhost:7246/api/requests", requestDto);
+            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/requests", requestDto);
 
             if (response.IsSuccessStatusCode)
             {

@@ -39,7 +39,7 @@ else
     {
         try
         {
-            requests = await Http.GetFromJsonAsync<List<RequestDto>>("https://localhost:7246/api/requests/client/1");
+            requests = await Http.GetFromJsonAsync<List<RequestDto>>("https://localhost:7029/api/requests/client/1");
         }
         catch (Exception ex)
         {

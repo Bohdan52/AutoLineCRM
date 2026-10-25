@@ -1,23 +1,20 @@
 var builder = WebApplication.CreateBuilder(args);
 
-// Add services to the container.
+// Додаємо YARP і кажемо йому читати налаштування з appsettings.json
+builder.Services.AddReverseProxy()
+    .LoadFromConfig(builder.Configuration.GetSection("ReverseProxy"));
 
-builder.Services.AddControllers();
-// Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
-builder.Services.AddOpenApi();
+// Налаштовуємо CORS для шлюзу
+builder.Services.AddCors(options =>
+{
+    options.AddPolicy("AllowAll", policy => policy.AllowAnyOrigin().AllowAnyMethod().AllowAnyHeader());
+});
 
 var app = builder.Build();
 
-// Configure the HTTP request pipeline.
-if (app.Environment.IsDevelopment())
-{
-    app.MapOpenApi();
-}
+app.UseCors("AllowAll");
 
-app.UseHttpsRedirection();
-
-app.UseAuthorization();
-
-app.MapControllers();
+// Вмикаємо маршрутизацію
+app.MapReverseProxy();
 
 app.Run();
