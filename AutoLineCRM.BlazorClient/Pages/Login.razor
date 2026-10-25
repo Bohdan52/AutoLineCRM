@@ -1,6 +1,7 @@
 ﻿@page "/login"
 @inject HttpClient Http
 @inject D20Tek.Blazor.BrowserStorage.ILocalStorageService Storage
+@inject AuthenticationStateProvider AuthStateProvider
 @inject NavigationManager NavManager
 @using MudBlazor
 
@@ -60,27 +61,42 @@
 
         try
         {
+           
             var response = await Http.PostAsJsonAsync("https://localhost:7029/api/auth/login", loginDto);
+
+            // Читаємо відповідь як звичайний текст
+            var rawContent = await response.Content.ReadAsStringAsync();
+
+            // Виводимо в консоль браузера для діагностики
+            Console.WriteLine($"--- LOGIN RESPONSE ---");
+            Console.WriteLine($"Status: {response.StatusCode}");
+            Console.WriteLine($"Raw Content: {rawContent}");
+            Console.WriteLine($"----------------------");
 
             if (response.IsSuccessStatusCode)
             {
-                var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
+                // Якщо все ок, намагаємось розібрати JSON
+                var result = System.Text.Json.JsonSerializer.Deserialize<AuthResponse>(rawContent, new System.Text.Json.JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
                 if (result?.Token != null)
                 {
-                    // ЗБЕРІГАЄМО ТОКЕН У БРАУЗЕРІ
                     await Storage.SetAsync("authToken", result.Token);
+                    ((CustomAuthStateProvider)AuthStateProvider).NotifyUserAuthentication(result.Token);
 
-                    message = "Успіх! Ви увійшли. Перенаправлення...";
+                    message = "Успіх! Ви увійшли.";
                     alertColor = Severity.Success;
-
-                    // Переходимо на каталог
                     NavManager.NavigateTo("/catalog");
+                }
+                else
+                {
+                    message = "Сервер повернув успіх, але токен порожній.";
+                    alertColor = Severity.Error;
                 }
             }
             else
             {
-                message = "Помилка: невірний логін або пароль.";
+                // Якщо помилка (401, 500), показуємо її текст
+                message = $"Помилка сервера ({(int)response.StatusCode}): {rawContent}";
                 alertColor = Severity.Error;
             }
         }

@@ -1,4 +1,6 @@
-﻿@page "/admin-requests"
+﻿@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Manager,Administrator")]
+@page "/admin-requests"
 @inject HttpClient Http
 @inject ISnackbar Snackbar
 @using MudBlazor
