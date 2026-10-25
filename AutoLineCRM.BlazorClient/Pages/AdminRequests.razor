@@ -1,0 +1,122 @@
+﻿@page "/admin-requests"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@using MudBlazor
+
+<MudText Typo="Typo.h4" Class="mb-4">Панель менеджера</MudText>
+
+@if (requests == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (!requests.Any())
+{
+    <MudAlert Severity="Severity.Info">В системі ще немає жодної заявки.</MudAlert>
+}
+else
+{
+    <MudTable Items="@requests" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Клієнт (ID)</MudTh>
+            <MudTh>Авто (ID)</MudTh>
+            <MudTh>Дата</MudTh>
+            <MudTh>Статус</MudTh>
+            <MudTh>Дії</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Клієнт">#@context.ClientId</MudTd>
+            <MudTd DataLabel="Авто">#@context.CarId</MudTd>
+            <MudTd DataLabel="Дата">@context.CreatedAt.ToString("g")</MudTd>
+            <MudTd DataLabel="Статус">
+                <MudChip T="string" Size="Size.Small" Color="GetStatusColor(context.Status)">
+                    @GetStatusName(context.Status)
+                </MudChip>
+            </MudTd>
+            <MudTd DataLabel="Дії">
+                <MudButton Variant="Variant.Outlined" Color="Color.Primary" Size="Size.Small"
+                           OnClick="@(() => ChangeStatus(context.Id, 1))">
+                    В обробку
+                </MudButton>
+                <MudButton Variant="Variant.Outlined" Color="Color.Success" Size="Size.Small" Class="ml-2"
+                           OnClick="@(() => ChangeStatus(context.Id, 2))">
+                    Підтвердити
+                </MudButton>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<RequestDto>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        await LoadRequests();
+    }
+
+    private async Task LoadRequests()
+    {
+        try
+        {
+            requests = await Http.GetFromJsonAsync<List<RequestDto>>("https://localhost:7029/api/requests");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+    }
+
+    private async Task ChangeStatus(int id, int newStatus)
+    {
+        try
+        {
+            var response = await Http.PutAsJsonAsync($"https://localhost:7029/api/requests/{id}/status", new { Status = newStatus });
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Статус успішно оновлено!", Severity.Success);
+                await LoadRequests(); // Оновлюємо таблицю
+            }
+            else
+            {
+                Snackbar.Add("Помилка при оновленні статусу.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Помилка: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private string GetStatusName(int status) => status switch
+    {
+        0 => "Нова",
+        1 => "В обробці",
+        2 => "Підтверджено",
+        3 => "Оплачено",
+        4 => "Завершено",
+        5 => "Скасовано",
+        _ => "Невідомо"
+    };
+
+    private Color GetStatusColor(int status) => status switch
+    {
+        0 => Color.Info,
+        1 => Color.Warning,
+        2 => Color.Success,
+        3 => Color.Primary,
+        4 => Color.Default,
+        5 => Color.Error,
+        _ => Color.Default
+    };
+
+    public class RequestDto
+    {
+        public int Id { get; set; }
+        public int CarId { get; set; }
+        public int ClientId { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int Status { get; set; }
+    }
+}

@@ -1,6 +1,7 @@
 ﻿using AutoLineCRM.SalesService.Dtos;
-using AutoLineCRM.SalesService.Services; // <-- підключаємо простір імен
+using AutoLineCRM.SalesService.Services; 
 using Microsoft.AspNetCore.Mvc;
+using AutoLineCRM.SharedKernel.Enums;
 
 namespace AutoLineCRM.SalesService.Controllers;
 
@@ -24,5 +25,18 @@ public class RequestsController : ControllerBase
     {
         var result = await _requestService.GetClientRequestsAsync(clientId);
         return Ok(result);
+    }
+    [HttpGet]
+    public async Task<IActionResult> GetAll()
+    {
+        var result = await _requestService.GetAllRequestsAsync();
+        return Ok(result);
+    }
+
+    [HttpPut("{id:int}/status")]
+    public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
+    {
+        var success = await _requestService.UpdateRequestStatusAsync(id, (RequestStatus)dto.Status);
+        return success ? Ok() : NotFound();
     }
 }

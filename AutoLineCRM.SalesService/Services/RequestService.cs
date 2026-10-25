@@ -34,4 +34,20 @@ public class RequestService
             .OrderByDescending(r => r.CreatedAt)
             .ToListAsync();
     }
+    public async Task<List<Request>> GetAllRequestsAsync()
+    {
+        return await _db.Requests
+            .OrderByDescending(r => r.CreatedAt)
+            .ToListAsync();
+    }
+
+    public async Task<bool> UpdateRequestStatusAsync(int id, RequestStatus status)
+    {
+        var request = await _db.Requests.FindAsync(id);
+        if (request == null) return false;
+
+        request.Status = status;
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }
