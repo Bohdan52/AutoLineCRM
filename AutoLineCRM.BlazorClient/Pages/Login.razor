@@ -1,5 +1,7 @@
 ﻿@page "/login"
 @inject HttpClient Http
+@inject D20Tek.Blazor.BrowserStorage.ILocalStorageService Storage
+@inject NavigationManager NavManager
 @using MudBlazor
 
 <div class="d-flex justify-center align-center" style="min-height: 60vh;">
@@ -58,14 +60,23 @@
 
         try
         {
-            // Увага: перевір свій порт UserAuthService!
-            var response = await Http.PostAsJsonAsync("https://localhost:7281/api/auth/login", loginDto);
+            var response = await Http.PostAsJsonAsync("https://localhost:7246/api/auth/login", loginDto);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
-                message = $"Успіх! Ваш токен: {result?.Token.Substring(0, 15)}...";
-                alertColor = Severity.Success;
+
+                if (result?.Token != null)
+                {
+                    // ЗБЕРІГАЄМО ТОКЕН У БРАУЗЕРІ
+                    await Storage.SetAsync("authToken", result.Token);
+
+                    message = "Успіх! Ви увійшли. Перенаправлення...";
+                    alertColor = Severity.Success;
+
+                    // Переходимо на каталог
+                    NavManager.NavigateTo("/catalog");
+                }
             }
             else
             {

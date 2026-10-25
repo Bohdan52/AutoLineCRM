@@ -21,10 +21,6 @@
   </ItemGroup>
 
   <ItemGroup>
-    <Folder Include="Controllers\" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\AutoLineCRM.EventBus\AutoLineCRM.EventBus.csproj" />
     <ProjectReference Include="..\AutoLineCRM.SharedKernel\AutoLineCRM.SharedKernel.csproj" />
   </ItemGroup>

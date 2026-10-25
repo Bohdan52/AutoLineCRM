@@ -1,0 +1,69 @@
+﻿@page "/my-requests"
+@inject HttpClient Http
+@using MudBlazor
+
+<MudText Typo="Typo.h4" Class="mb-4">Мої заявки</MudText>
+
+@if (requests == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (!requests.Any())
+{
+    <MudAlert Severity="Severity.Info">У вас ще немає заявок.</MudAlert>
+}
+else
+{
+    <MudTable Items="@requests" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Авто (ID)</MudTh>
+            <MudTh>Дата створення</MudTh>
+            <MudTh>Статус</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Авто">#@context.CarId</MudTd>
+            <MudTd DataLabel="Дата">@context.CreatedAt.ToString("g")</MudTd>
+            <MudTd DataLabel="Статус">
+                <MudChip T="string" Size="Size.Small" Color="Color.Info">@GetStatusName(context.Status)</MudChip>
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<RequestDto>? requests;
+
+    protected override async Task OnInitializedAsync()
+    {
+        try
+        {
+            requests = await Http.GetFromJsonAsync<List<RequestDto>>("https://localhost:7246/api/requests/client/1");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+        }
+    }
+
+    private string GetStatusName(int status) => status switch
+    {
+        0 => "Нова",
+        1 => "В обробці",
+        2 => "Підтверджено",
+        3 => "Оплачено",
+        4 => "Завершено",
+        5 => "Скасовано",
+        _ => "Невідомо"
+    };
+
+    public class RequestDto
+    {
+        public int Id { get; set; }
+        public int CarId { get; set; }
+        public int ClientId { get; set; }
+        public DateTime CreatedAt { get; set; }
+        public int Status { get; set; }
+    }
+}

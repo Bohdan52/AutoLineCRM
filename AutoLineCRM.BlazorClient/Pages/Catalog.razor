@@ -1,41 +1,47 @@
 ﻿@page "/catalog"
 @inject HttpClient Http
+@inject ISnackbar Snackbar
+@using MudBlazor
 
-<h3>Каталог автомобілів</h3>
+<MudText Typo="Typo.h4" Class="mb-4">Каталог автомобілів</MudText>
 
 @if (cars == null)
 {
-    <p><em>Завантаження...</em></p>
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
 }
 else if (!cars.Any())
 {
-    <p>Автомобілів поки немає.</p>
+    <MudAlert Severity="Severity.Info">Автомобілів поки немає.</MudAlert>
 }
 else
 {
-    <table class="table table-striped">
-        <thead>
-            <tr>
-                <th>Бренд</th>
-                <th>Модель</th>
-                <th>Рік</th>
-                <th>Ціна</th>
-                <th>Статус</th>
-            </tr>
-        </thead>
-        <tbody>
-            @foreach (var car in cars)
-            {
-                <tr>
-                    <td>@car.Brand</td>
-                    <td>@car.Model</td>
-                    <td>@car.Year</td>
-                    <td>@car.Price.ToString("C")</td>
-                    <td>@GetStatusName(car.Status)</td>
-                </tr>
-            }
-        </tbody>
-    </table>
+    <MudGrid>
+        @foreach (var car in cars)
+        {
+            <MudItem xs="12" sm="6" md="4">
+                <MudCard Elevation="4" Class="rounded-lg">
+                    <MudCardMedia Image="https://images.unsplash.com/photo-1494976388531-d1058494cdd8?q=80&w=500&auto=format&fit=crop" Height="180" />
+                    <MudCardContent>
+                        <MudText Typo="Typo.h6">@car.Brand @car.Model</MudText>
+                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Рік: @car.Year</MudText>
+
+                        <div class="d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.h5" Color="Color.Primary">@car.Price.ToString("C")</MudText>
+                            <MudChip T="string" Size="Size.Small" Color="GetStatusColor(car.Status)">
+                                @GetStatusName(car.Status)
+                            </MudChip>
+                        </div>
+                    </MudCardContent>
+                    <MudCardActions>
+                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.ShoppingCart"
+                                   OnClick="@(() => BookCar(car.Id))">
+                            Забронювати
+                        </MudButton>
+                    </MudCardActions>
+                </MudCard>
+            </MudItem>
+        }
+    </MudGrid>
 }
 
 @code {
@@ -53,6 +59,28 @@ else
         }
     }
 
+    private async Task BookCar(int carId)
+    {
+        try
+        {
+            var requestDto = new { CarId = carId, ClientId = 1 };
+            var response = await Http.PostAsJsonAsync("https://localhost:7246/api/requests", requestDto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Успішно! Заявку на авто створено.", Severity.Success);
+            }
+            else
+            {
+                Snackbar.Add("Помилка при створенні заявки.", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Помилка: {ex.Message}", Severity.Warning);
+        }
+    }
+
     private string GetStatusName(int status) => status switch
     {
         0 => "В наявності",
@@ -62,6 +90,15 @@ else
         _ => "Невідомо"
     };
 
+    private Color GetStatusColor(int status) => status switch
+    {
+        0 => Color.Success,
+        1 => Color.Warning,
+        2 => Color.Error,
+        3 => Color.Default,
+        _ => Color.Default
+    };
+
     public class CarDto
     {
         public int Id { get; set; }
@@ -69,7 +106,6 @@ else
         public string Model { get; set; } = "";
         public int Year { get; set; }
         public decimal Price { get; set; }
-
         public int Status { get; set; }
     }
 }
