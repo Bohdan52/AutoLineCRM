@@ -1,45 +1,86 @@
 ﻿@page "/login"
 @inject HttpClient Http
+@using MudBlazor
 
-<h3>Вхід у систему</h3>
+<div class="d-flex justify-center align-center" style="min-height: 60vh;">
+    <MudPaper Elevation="6" Class="pa-8 rounded-lg" Width="400px">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6" Color="Color.Primary">Вхід</MudText>
 
-<div class="row">
-    <div class="col-md-4">
-        <input class="form-control mb-2" placeholder="Логін" @bind="loginDto.Login" />
-        <input class="form-control mb-2" type="password" placeholder="Пароль" @bind="loginDto.Password" />
-        <button class="btn btn-primary" @onclick="HandleLogin">Увійти</button>
+        <MudTextField @bind-Value="loginDto.Login"
+                      Label="Логін"
+                      Variant="Variant.Outlined"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Person"
+                      Class="mb-4" />
+
+        <MudTextField @bind-Value="loginDto.Password"
+                      Label="Пароль"
+                      Variant="Variant.Outlined"
+                      InputType="InputType.Password"
+                      Adornment="Adornment.Start"
+                      AdornmentIcon="@Icons.Material.Filled.Lock"
+                      Class="mb-6" />
+
+        <MudButton Variant="Variant.Filled"
+                   Color="Color.Primary"
+                   FullWidth="true"
+                   Size="Size.Large"
+                   OnClick="HandleLogin"
+                   Disabled="@isLoading">
+            @if (isLoading)
+            {
+                <MudProgressCircular Size="Size.Small" Indeterminate="true" Class="mr-2" />
+                <span>Зачекайте...</span>
+            }
+            else
+            {
+                <span>Увійти</span>
+            }
+        </MudButton>
 
         @if (message != null)
         {
-            <div class="alert alert-info mt-3">@message</div>
+            <MudAlert Severity="@alertColor" Class="mt-4">@message</MudAlert>
         }
-    </div>
+    </MudPaper>
 </div>
 
 @code {
     private LoginDto loginDto = new();
     private string? message;
+    private Severity alertColor = Severity.Info;
+    private bool isLoading = false;
 
     private async Task HandleLogin()
     {
+        isLoading = true;
+        message = null;
+
         try
         {
-            // Увага: використовуємо порт твого UserAuthService!
+            // Увага: перевір свій порт UserAuthService!
             var response = await Http.PostAsJsonAsync("https://localhost:7281/api/auth/login", loginDto);
 
             if (response.IsSuccessStatusCode)
             {
                 var result = await response.Content.ReadFromJsonAsync<AuthResponse>();
                 message = $"Успіх! Ваш токен: {result?.Token.Substring(0, 15)}...";
+                alertColor = Severity.Success;
             }
             else
             {
                 message = "Помилка: невірний логін або пароль.";
+                alertColor = Severity.Error;
             }
         }
         catch (Exception ex)
         {
             message = $"Помилка з'єднання: {ex.Message}";
+            alertColor = Severity.Warning;
+        }
+        finally
+        {
+            isLoading = false;
         }
     }
 

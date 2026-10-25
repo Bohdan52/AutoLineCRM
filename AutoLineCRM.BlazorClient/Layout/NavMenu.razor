@@ -1,10 +1,7 @@
-﻿<div class="nav-item px-3">
-    <NavLink class="nav-link" href="catalog" style="color: white;">
-        <span class="bi bi-car-front-fill-nav-menu" aria-hidden="true"></span> Каталог авто
-    </NavLink>
-</div>
-<div class="nav-item px-3">
-    <NavLink class="nav-link" href="login" style="color: white;">
-        <span class="bi bi-person-fill-nav-menu" aria-hidden="true"></span> Вхід
-    </NavLink>
-</div>
+﻿@using MudBlazor
+
+<MudNavMenu>
+    <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Головна</MudNavLink>
+    <MudNavLink Href="/catalog" Icon="@Icons.Material.Filled.DirectionsCar">Каталог авто</MudNavLink>
+    <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Вхід</MudNavLink>
+</MudNavMenu>
