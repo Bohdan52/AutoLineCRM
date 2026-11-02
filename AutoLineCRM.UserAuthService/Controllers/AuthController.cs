@@ -1,4 +1,5 @@
 ﻿using AutoLineCRM.UserAuthService.Dtos;
+using AutoLineCRM.SharedKernel.Enums;
 using AutoLineCRM.UserAuthService.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
@@ -16,6 +17,10 @@ public class AuthController : ControllerBase
     [AllowAnonymous]
     public async Task<IActionResult> Register([FromBody] RegisterDto dto)
     {
+        // Відкрита реєстрація створює лише клієнтів; менеджерів і адміністраторів додає адміністратор
+                if (dto.Role != UserRole.Client)
+                    return StatusCode(403, new { error = "Публічна реєстрація доступна лише для клієнтів" });
+        
         try { return Ok(await _auth.RegisterAsync(dto)); }
         catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }

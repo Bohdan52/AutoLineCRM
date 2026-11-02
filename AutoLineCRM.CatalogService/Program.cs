@@ -27,7 +27,7 @@ app.UseCors("AllowAll");
 if (app.Environment.IsDevelopment())
 {
     app.MapOpenApi();
-    app.MapScalarApiReference();   // ← Scalar UI на /scalar/v1
+    app.MapScalarApiReference();
 }
 
 app.UseHttpsRedirection();
@@ -37,3 +37,6 @@ app.UseAuthorization();
 app.MapControllers();
 
 app.Run();
+
+[System.Diagnostics.CodeAnalysis.ExcludeFromCodeCoverage]
+public partial class Program { }

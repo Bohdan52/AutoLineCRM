@@ -36,7 +36,11 @@ public class RequestsController : ControllerBase
     [HttpPut("{id:int}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusDto dto)
     {
-        var success = await _requestService.UpdateRequestStatusAsync(id, (RequestStatus)dto.Status);
-        return success ? Ok() : NotFound();
+        try
+        {
+            var success = await _requestService.UpdateRequestStatusAsync(id, (RequestStatus)dto.Status);
+            return success ? Ok() : NotFound();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 }

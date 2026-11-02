@@ -13,6 +13,7 @@ public class RequestService
 
     public async Task<Request> CreateRequestAsync(CreateRequestDto dto)
     {
+
         var request = new Request
         {
             CarId = dto.CarId,
@@ -43,10 +44,14 @@ public class RequestService
 
     public async Task<bool> UpdateRequestStatusAsync(int id, RequestStatus status)
     {
+        if (!Enum.IsDefined(status))
+            throw new ArgumentException("Невідомий статус заявки");
+
         var request = await _db.Requests.FindAsync(id);
         if (request == null) return false;
 
         request.Status = status;
+        request.UpdatedAt = DateTime.UtcNow;
         await _db.SaveChangesAsync();
         return true;
     }

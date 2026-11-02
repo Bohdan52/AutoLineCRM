@@ -14,6 +14,8 @@ public class CarService
         string? brand, string? model, decimal? minPrice, decimal? maxPrice,
         CarStatus? status, int page = 1, int size = 20)
     {
+        page = Math.Max(page, 1);
+        size = Math.Clamp(size, 1, 100);
         var q = _db.Cars.AsNoTracking().AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(brand))
@@ -34,6 +36,11 @@ public class CarService
 
     public async Task<Car> CreateAsync(Car car)
     {
+        if (string.IsNullOrWhiteSpace(car.VIN))
+            throw new ArgumentException("VIN-код є обов'язковим");
+        
+        if (await _db.Cars.AnyAsync(c => c.VIN == car.VIN))
+            throw new InvalidOperationException("Автомобіль з таким VIN-кодом вже існує");
         _db.Cars.Add(car);
         await _db.SaveChangesAsync();
         return car;

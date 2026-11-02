@@ -25,6 +25,8 @@ public class AuthService
     {
         if (await _db.Users.AnyAsync(u => u.Login == dto.Login))
             throw new InvalidOperationException("Логін вже зайнятий");
+        if (await _db.Users.AnyAsync(u => u.Email == dto.Email))
+            throw new InvalidOperationException("Електронна пошта вже використовується");
 
         var hash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 

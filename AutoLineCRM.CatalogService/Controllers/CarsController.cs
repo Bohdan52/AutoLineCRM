@@ -2,6 +2,7 @@
 using AutoLineCRM.SharedKernel.Entities;
 using AutoLineCRM.SharedKernel.Enums;
 using Microsoft.AspNetCore.Cors.Infrastructure;
+using Microsoft.AspNetCore.Http.HttpResults;
 using Microsoft.AspNetCore.Mvc;
 using System.Runtime.ConstrainedExecution;
 
@@ -38,8 +39,13 @@ public class CarsController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create([FromBody] Car car)
     {
-        var created = await _cars.CreateAsync(car);
-        return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+       try
+       {
+            var created = await _cars.CreateAsync(car);
+            return CreatedAtAction(nameof(GetById), new { id = created.Id }, created);
+       }
+       catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+       catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 
     [HttpPut("{id:int}")]
