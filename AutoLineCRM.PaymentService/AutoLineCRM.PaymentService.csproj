@@ -23,5 +23,8 @@
   <ItemGroup>
     <Folder Include="Controllers\" />
   </ItemGroup>
+	<ItemGroup>
+		<ProjectReference Include="..\AutoLineCRM.SharedKernel\AutoLineCRM.SharedKernel.csproj" />
+	</ItemGroup>
 
 </Project>

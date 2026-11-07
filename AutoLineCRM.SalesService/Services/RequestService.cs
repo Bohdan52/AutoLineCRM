@@ -3,14 +3,20 @@ using AutoLineCRM.SalesService.Dtos;
 using AutoLineCRM.SharedKernel.Entities;
 using AutoLineCRM.SharedKernel.Enums;
 using Microsoft.EntityFrameworkCore;
+using AutoLineCRM.SharedKernel.Events;
 
 namespace AutoLineCRM.SalesService.Services;
 
 public class RequestService
 {
     private readonly SalesDbContext _db;
-    public RequestService(SalesDbContext db) => _db = db;
+    private readonly IEventBus? _eventBus;
 
+    public RequestService(SalesDbContext db, IEventBus? eventBus = null)
+    {
+        _db = db;
+        _eventBus = eventBus;
+    }
     public async Task<Request> CreateRequestAsync(CreateRequestDto dto)
     {
 
@@ -25,6 +31,8 @@ public class RequestService
 
         _db.Requests.Add(request);
         await _db.SaveChangesAsync();
+        if (_eventBus is not null)
+            await _eventBus.PublishAsync(new RequestCreatedEvent(request.Id, request.ClientId, request.CarId));
         return request;
     }
 

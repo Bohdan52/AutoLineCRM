@@ -15,10 +15,13 @@ public class AuthService
     private readonly AuthDbContext _db;
     private readonly IConfiguration _config;
 
-    public AuthService(AuthDbContext db, IConfiguration config)
+    private readonly UserFactory _userFactory;
+
+    public AuthService(AuthDbContext db, IConfiguration config, UserFactory? userFactory = null)
     {
         _db = db;
         _config = config;
+        _userFactory = userFactory ?? new UserFactory();
     }
 
     public async Task<AuthResponseDto> RegisterAsync(RegisterDto dto)
@@ -30,13 +33,7 @@ public class AuthService
 
         var hash = BCrypt.Net.BCrypt.HashPassword(dto.Password);
 
-        User user = dto.Role switch
-        {
-            UserRole.Client => new Client { Login = dto.Login, PasswordHash = hash, Email = dto.Email, FullName = dto.FullName, Phone = dto.Phone ?? "" },
-            UserRole.Manager => new Manager { Login = dto.Login, PasswordHash = hash, Email = dto.Email, FullName = dto.FullName, Phone = dto.Phone ?? "" },
-            UserRole.Administrator => new Administrator { Login = dto.Login, PasswordHash = hash, Email = dto.Email, FullName = dto.FullName },
-            _ => throw new ArgumentException("Невідома роль")
-        };
+        var user = _userFactory.Create(dto, hash);
 
         _db.Users.Add(user);
         await _db.SaveChangesAsync();
