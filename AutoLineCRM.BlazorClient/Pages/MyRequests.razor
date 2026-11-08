@@ -1,5 +1,6 @@
 ﻿@page "/my-requests"
 @inject HttpClient Http
+@inject ISnackbar Snackbar
 @using MudBlazor
 
 <MudText Typo="Typo.h4" Class="mb-4">Мої заявки</MudText>
@@ -20,30 +21,138 @@ else
             <MudTh>Авто (ID)</MudTh>
             <MudTh>Дата створення</MudTh>
             <MudTh>Статус</MudTh>
+            <MudTh>Дія</MudTh>
         </HeaderContent>
         <RowTemplate>
             <MudTd DataLabel="ID">@context.Id</MudTd>
             <MudTd DataLabel="Авто">#@context.CarId</MudTd>
             <MudTd DataLabel="Дата">@context.CreatedAt.ToString("g")</MudTd>
             <MudTd DataLabel="Статус">
-                <MudChip T="string" Size="Size.Small" Color="Color.Info">@GetStatusName(context.Status)</MudChip>
+                <MudChip T="string" Size="Size.Small" Color="@(context.Status == 3 ? Color.Success : Color.Info)">@GetStatusName(context.Status)</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Дія">
+                @if (context.Status == 2)
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
+                               OnClick="() => StartPayment(context)">Оплатити</MudButton>
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
 }
 
-@code {
-    private List<RequestDto>? requests;
+@if (selected != null)
+{
+    <MudPaper Class="pa-4 mt-4" Elevation="3">
+        <MudText Typo="Typo.h6" Class="mb-2">Оплата заявки #@selected.Id</MudText>
 
-    protected override async Task OnInitializedAsync()
+        @if (price == null)
+        {
+            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+        }
+        else
+        {
+            <MudText Class="mb-3">Сума до сплати: <b>@price.Value.ToString("N0") грн</b></MudText>
+
+            <MudSelect T="int" @bind-Value="method" Label="Спосіб оплати" Class="mb-3">
+                <MudSelectItem T="int" Value="1">Банківська картка</MudSelectItem>
+                <MudSelectItem T="int" Value="0">Готівка в салоні</MudSelectItem>
+                <MudSelectItem T="int" Value="2">Банківський переказ</MudSelectItem>
+            </MudSelect>
+
+            @if (method == 1)
+            {
+                <MudTextField T="string" @bind-Value="cardToken" Label="Номер картки (імітація)" Class="mb-3" />
+            }
+
+            <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@paying" OnClick="PayAsync">
+                @(paying ? "Обробка..." : "Підтвердити оплату")
+            </MudButton>
+            <MudButton Variant="Variant.Text" Class="ml-2" OnClick="Cancel">Скасувати</MudButton>
+        }
+    </MudPaper>
+}
+
+@code {
+    private const string Api = "https://localhost:7029";
+
+    private List<RequestDto>? requests;
+    private RequestDto? selected;
+    private decimal? price;
+    private int method = 1;
+    private string cardToken = "";
+    private bool paying;
+
+    protected override async Task OnInitializedAsync() => await LoadAsync();
+
+    private async Task LoadAsync()
     {
         try
         {
-            requests = await Http.GetFromJsonAsync<List<RequestDto>>("https://localhost:7029/api/requests/client/1");
+            requests = await Http.GetFromJsonAsync<List<RequestDto>>($"{Api}/api/requests/client/1");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Помилка: {ex.Message}");
+        }
+    }
+
+    private async Task StartPayment(RequestDto request)
+    {
+        selected = request;
+        price = null;
+        cardToken = "";
+        method = 1;
+
+        try
+        {
+            var car = await Http.GetFromJsonAsync<CarDto>($"{Api}/api/cars/{request.CarId}");
+            price = car?.Price ?? 0;
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Не вдалося отримати ціну авто: {ex.Message}", Severity.Error);
+            selected = null;
+        }
+    }
+
+    private void Cancel() => selected = null;
+
+    private async Task PayAsync()
+    {
+        if (selected == null || price == null) return;
+        paying = true;
+
+        try
+        {
+            var dto = new { RequestId = selected.Id, Amount = price.Value, Method = method, Currency = "UAH", CardToken = cardToken };
+            var response = await Http.PostAsJsonAsync($"{Api}/api/payments", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var error = await response.Content.ReadFromJsonAsync<ErrorDto>();
+                Snackbar.Add(error?.Error ?? "Оплату відхилено", Severity.Error);
+                return;
+            }
+
+            var statusResponse = await Http.PutAsJsonAsync($"{Api}/api/requests/{selected.Id}/status", new { Status = 3 });
+            if (!statusResponse.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Оплату проведено, але статус заявки не оновився", Severity.Warning);
+                return;
+            }
+
+            Snackbar.Add("Оплата пройшла успішно", Severity.Success);
+            selected = null;
+            await LoadAsync();
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Помилка: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            paying = false;
         }
     }
 
@@ -65,5 +174,15 @@ else
         public int ClientId { get; set; }
         public DateTime CreatedAt { get; set; }
         public int Status { get; set; }
+    }
+
+    public class CarDto
+    {
+        public decimal Price { get; set; }
+    }
+
+    public class ErrorDto
+    {
+        public string? Error { get; set; }
     }
 }

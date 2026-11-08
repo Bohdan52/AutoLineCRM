@@ -1,7 +1,38 @@
 ﻿@page "/"
+@using MudBlazor
 
-<PageTitle>Home</PageTitle>
+<PageTitle>AutoLine CRM</PageTitle>
 
-<h1>Hello, world!</h1>
+<MudPaper Class="pa-10 mb-6 rounded-lg" Elevation="0"
+          Style="background: linear-gradient(135deg, #0f172a 0%, #1d4ed8 100%); color: white;">
+    <MudText Typo="Typo.h3" Style="font-weight:700;">AutoLine</MudText>
+    <MudText Typo="Typo.h6" Class="mt-2 mb-6" Style="opacity:.85; max-width:560px;">
+        Автомобілі з перевіреною історією. Оберіть авто, залиште заявку й оплатіть онлайн.
+    </MudText>
+    <MudButton Href="/catalog" Variant="Variant.Filled" Color="Color.Surface" Size="Size.Large"
+               StartIcon="@Icons.Material.Filled.DirectionsCar">Переглянути каталог</MudButton>
+</MudPaper>
 
-Welcome to your new app.
+<MudGrid Spacing="4">
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-5 rounded-lg" Elevation="2" Style="height:100%;">
+            <MudIcon Icon="@Icons.Material.Filled.Search" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Class="mt-2">Зручний пошук</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Фільтри за маркою, ціною та наявністю, сортування за роком і вартістю.</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-5 rounded-lg" Elevation="2" Style="height:100%;">
+            <MudIcon Icon="@Icons.Material.Filled.ListAlt" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Class="mt-2">Заявка в один клік</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Бронюйте авто, а менеджер підтвердить заявку й зв'яжеться з вами.</MudText>
+        </MudPaper>
+    </MudItem>
+    <MudItem xs="12" md="4">
+        <MudPaper Class="pa-5 rounded-lg" Elevation="2" Style="height:100%;">
+            <MudIcon Icon="@Icons.Material.Filled.Payments" Color="Color.Primary" Size="Size.Large" />
+            <MudText Typo="Typo.h6" Class="mt-2">Оплата онлайн</MudText>
+            <MudText Typo="Typo.body2" Color="Color.Secondary">Карткою, готівкою в салоні або банківським переказом.</MudText>
+        </MudPaper>
+    </MudItem>
+</MudGrid>

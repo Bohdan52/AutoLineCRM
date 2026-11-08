@@ -16,7 +16,7 @@ public class CarService
     {
         page = Math.Max(page, 1);
         size = Math.Clamp(size, 1, 100);
-        var q = _db.Cars.AsNoTracking().AsQueryable();
+        var q = _db.Cars.AsNoTracking().Include(c => c.Images).AsQueryable();
 
         if (!string.IsNullOrWhiteSpace(brand))
             q = q.Where(c => EF.Functions.Like(c.Brand, $"%{brand}%"));

@@ -3,59 +3,146 @@
 @inject ISnackbar Snackbar
 @using MudBlazor
 
-<MudText Typo="Typo.h4" Class="mb-4">Каталог автомобілів</MudText>
+<PageTitle>Каталог авто</PageTitle>
+
+<style>
+    .car-card { overflow: hidden; transition: transform .2s, box-shadow .2s; height: 100%; display: flex; flex-direction: column; }
+    .car-card:hover { transform: translateY(-4px); box-shadow: 0 12px 28px rgba(15, 23, 42, .18) !important; }
+    .car-photo { position: relative; height: 190px; background: linear-gradient(135deg, #1e293b, #475569); display: flex; align-items: center; justify-content: center; }
+    .car-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
+    .car-badge { position: absolute; top: 10px; left: 10px; z-index: 1; }
+    .car-spec { display: flex; align-items: center; gap: 4px; color: #64748b; font-size: .85rem; }
+</style>
+
+<MudText Typo="Typo.h4" Class="mb-1">Каталог автомобілів</MudText>
 
 @if (cars == null)
 {
-    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
-}
-else if (!cars.Any())
-{
-    <MudAlert Severity="Severity.Info">Автомобілів поки немає.</MudAlert>
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" Class="mt-4" />
 }
 else
 {
-    <MudGrid>
-        @foreach (var car in cars)
-        {
-            <MudItem xs="12" sm="6" md="4">
-                <MudCard Elevation="4" Class="rounded-lg">
-                    <MudCardMedia Image="https://images.unsplash.com/photo-1494976388531-d1058494cdd8?q=80&w=500&auto=format&fit=crop" Height="180" />
-                    <MudCardContent>
-                        <MudText Typo="Typo.h6">@car.Brand @car.Model</MudText>
-                        <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">Рік: @car.Year</MudText>
+    <MudText Typo="Typo.body1" Color="Color.Secondary" Class="mb-4">Знайдено: @Filtered.Count з @cars.Count</MudText>
 
-                        <div class="d-flex justify-space-between align-center">
-                            <MudText Typo="Typo.h5" Color="Color.Primary">@car.Price.ToString("C")</MudText>
-                            <MudChip T="string" Size="Size.Small" Color="GetStatusColor(car.Status)">
-                                @GetStatusName(car.Status)
-                            </MudChip>
-                        </div>
-                    </MudCardContent>
-                    <MudCardActions>
-                        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" StartIcon="@Icons.Material.Filled.ShoppingCart"
-                                   OnClick="@(() => BookCar(car.Id))">
-                            Забронювати
-                        </MudButton>
-                    </MudCardActions>
-                </MudCard>
+    <MudPaper Class="pa-4 mb-6" Elevation="2">
+        <MudGrid Spacing="3" AlignItems="AlignItems.Center">
+            <MudItem xs="12" md="4">
+                <MudTextField T="string" @bind-Value="search" Immediate="true" Label="Пошук (марка, модель)"
+                              Adornment="Adornment.Start" AdornmentIcon="@Icons.Material.Filled.Search" Variant="Variant.Outlined" Margin="Margin.Dense" />
             </MudItem>
-        }
-    </MudGrid>
+            <MudItem xs="6" md="2">
+                <MudSelect T="string" @bind-Value="brand" Label="Марка" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@("")">Усі</MudSelectItem>
+                    @foreach (var b in cars.Select(c => c.Brand).Distinct().OrderBy(x => x))
+                    {
+                        <MudSelectItem T="string" Value="@b">@b</MudSelectItem>
+                    }
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="6" md="3">
+                <MudSelect T="string" @bind-Value="sort" Label="Сортування" Variant="Variant.Outlined" Margin="Margin.Dense">
+                    <MudSelectItem T="string" Value="@("brand")">За маркою</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("price_asc")">Спочатку дешевші</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("price_desc")">Спочатку дорожчі</MudSelectItem>
+                    <MudSelectItem T="string" Value="@("year_desc")">Спочатку новіші</MudSelectItem>
+                </MudSelect>
+            </MudItem>
+            <MudItem xs="12" md="3">
+                <MudSwitch T="bool" @bind-Value="onlyAvailable" Color="Color.Primary" Label="Лише в наявності" />
+            </MudItem>
+        </MudGrid>
+    </MudPaper>
+
+    @if (!Filtered.Any())
+    {
+        <MudAlert Severity="Severity.Info">За вашими фільтрами автомобілів не знайдено.</MudAlert>
+    }
+    else
+    {
+        <MudGrid Spacing="4">
+            @foreach (var car in Filtered)
+            {
+                <MudItem xs="12" sm="6" lg="4">
+                    <MudPaper Class="car-card rounded-lg" Elevation="3">
+                        <div class="car-photo">
+                            <MudIcon Icon="@Icons.Material.Filled.DirectionsCar" Style="font-size:64px; color:rgba(255,255,255,.35);" />
+                            @if (!string.IsNullOrEmpty(MainImage(car)))
+                            {
+                                <img src="@MainImage(car)" alt="@car.Brand @car.Model" loading="lazy"
+                                     onerror="this.style.display='none'" />
+                            }
+                            <div class="car-badge">
+                                <MudChip T="string" Size="Size.Small" Color="@StatusColor(car.Status)" Variant="Variant.Filled">@StatusName(car.Status)</MudChip>
+                            </div>
+                        </div>
+
+                        <div class="pa-4" style="flex:1;">
+                            <MudText Typo="Typo.h6">@car.Brand @car.Model</MudText>
+                            <MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-3">@car.Trim</MudText>
+
+                            <div class="d-flex flex-wrap" style="gap:16px;">
+                                <span class="car-spec"><MudIcon Icon="@Icons.Material.Filled.CalendarMonth" Size="Size.Small" />@car.Year</span>
+                                <span class="car-spec"><MudIcon Icon="@Icons.Material.Filled.Speed" Size="Size.Small" />@car.Mileage.ToString("N0") км</span>
+                            </div>
+                        </div>
+
+                        <MudDivider />
+                        <div class="pa-4 d-flex justify-space-between align-center">
+                            <MudText Typo="Typo.h5" Color="Color.Primary">@car.Price.ToString("N0") $</MudText>
+                            <MudButton Variant="Variant.Filled" Color="Color.Primary" StartIcon="@Icons.Material.Filled.ShoppingCart"
+                                       Disabled="@(car.Status != 0)" OnClick="@(() => BookCar(car.Id))">
+                                Забронювати
+                            </MudButton>
+                        </div>
+                    </MudPaper>
+                </MudItem>
+            }
+        </MudGrid>
+    }
 }
 
 @code {
     private List<CarDto>? cars;
+    private string search = "";
+    private string brand = "";
+    private string sort = "brand";
+    private bool onlyAvailable;
+
+    private List<CarDto> Filtered
+    {
+        get
+        {
+            if (cars == null) return new();
+            var q = cars.AsEnumerable();
+
+            if (!string.IsNullOrWhiteSpace(search))
+                q = q.Where(c => $"{c.Brand} {c.Model} {c.Trim}".Contains(search, StringComparison.OrdinalIgnoreCase));
+            if (!string.IsNullOrEmpty(brand))
+                q = q.Where(c => c.Brand == brand);
+            if (onlyAvailable)
+                q = q.Where(c => c.Status == 0);
+
+            q = sort switch
+            {
+                "price_asc" => q.OrderBy(c => c.Price),
+                "price_desc" => q.OrderByDescending(c => c.Price),
+                "year_desc" => q.OrderByDescending(c => c.Year),
+                _ => q.OrderBy(c => c.Brand).ThenBy(c => c.Model)
+            };
+            return q.ToList();
+        }
+    }
 
     protected override async Task OnInitializedAsync()
     {
         try
         {
-            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7029/api/cars");
+            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7029/api/cars?size=100");
         }
         catch (Exception ex)
         {
             Console.WriteLine($"Помилка: {ex.Message}");
+            cars = new();
         }
     }
 
@@ -63,17 +150,11 @@ else
     {
         try
         {
-            var requestDto = new { CarId = carId, ClientId = 1 };
-            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/requests", requestDto);
-
+            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/requests", new { CarId = carId, ClientId = 1 });
             if (response.IsSuccessStatusCode)
-            {
                 Snackbar.Add("Успішно! Заявку на авто створено.", Severity.Success);
-            }
             else
-            {
                 Snackbar.Add("Помилка при створенні заявки.", Severity.Error);
-            }
         }
         catch (Exception ex)
         {
@@ -81,21 +162,24 @@ else
         }
     }
 
-    private string GetStatusName(int status) => status switch
+    private static string? MainImage(CarDto car) =>
+        (car.Images.FirstOrDefault(i => i.IsMain) ?? car.Images.FirstOrDefault())?.Url;
+
+    // Статуси авто: 0 Available, 1 Sold, 2 Reserved, 3 Archived
+    private static string StatusName(int status) => status switch
     {
         0 => "В наявності",
-        1 => "Заброньовано",
-        2 => "Продано",
-        3 => "Архівовано",
+        1 => "Продано",
+        2 => "Заброньовано",
+        3 => "Архів",
         _ => "Невідомо"
     };
 
-    private Color GetStatusColor(int status) => status switch
+    private static Color StatusColor(int status) => status switch
     {
         0 => Color.Success,
-        1 => Color.Warning,
-        2 => Color.Error,
-        3 => Color.Default,
+        1 => Color.Error,
+        2 => Color.Warning,
         _ => Color.Default
     };
 
@@ -104,8 +188,17 @@ else
         public int Id { get; set; }
         public string Brand { get; set; } = "";
         public string Model { get; set; } = "";
+        public string Trim { get; set; } = "";
         public int Year { get; set; }
+        public int Mileage { get; set; }
         public decimal Price { get; set; }
         public int Status { get; set; }
+        public List<CarImageDto> Images { get; set; } = new();
+    }
+
+    public class CarImageDto
+    {
+        public string Url { get; set; } = "";
+        public bool IsMain { get; set; }
     }
 }

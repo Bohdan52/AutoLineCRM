@@ -1,6 +1,7 @@
 using AutoLineCRM.CatalogService.Data;
 using AutoLineCRM.CatalogService.Services;
 using Microsoft.EntityFrameworkCore;
+using System.Text.Json.Serialization;
 using Scalar.AspNetCore;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -11,7 +12,9 @@ builder.Services.AddDbContext<CatalogDbContext>(o =>
 
 builder.Services.AddScoped<CarService>();
 
-builder.Services.AddControllers();
+builder.Services.AddControllers()
+    .AddJsonOptions(o => o.JsonSerializerOptions.ReferenceHandler = ReferenceHandler.IgnoreCycles);
+
 // Learn more about configuring OpenAPI at https://aka.ms/aspnet/openapi
 builder.Services.AddOpenApi();
 
@@ -21,6 +24,13 @@ builder.Services.AddCors(options =>
 });
 
 var app = builder.Build();
+
+using (var scope = app.Services.CreateScope())
+{
+    var db = scope.ServiceProvider.GetRequiredService<CatalogDbContext>();
+    db.Database.Migrate();
+    await CatalogSeeder.SeedAsync(db);
+}
 
 app.UseCors("AllowAll");
 // Configure the HTTP request pipeline.
