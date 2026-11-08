@@ -8,6 +8,11 @@ using System.Runtime.ConstrainedExecution;
 
 namespace AutoLineCRM.CatalogService.Controllers;
 
+public record CreateCarDto(string Vin, string Brand, string Model, string Trim,
+                           int Year, int Mileage, decimal Price, string? PhotoUrl);
+public record UpdateCarDto(string Brand, string Model, string? Trim, int Year, int Mileage,
+                           decimal Price, CarStatus Status, string? PhotoUrl);
+
 [ApiController]
 [Route("api/cars")]
 public class CarsController : ControllerBase
@@ -60,5 +65,46 @@ public class CarsController : ControllerBase
     {
         var ok = await _cars.DeleteAsync(id);
         return ok ? NoContent() : NotFound();
+    }
+    [HttpPost("new")]
+    public async Task<IActionResult> CreateFromDto([FromBody] CreateCarDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Brand) || string.IsNullOrWhiteSpace(dto.Model))
+            return BadRequest(new { error = "Вкажіть марку та модель" });
+        if (dto.Price <= 0)
+            return BadRequest(new { error = "Ціна має бути більшою за нуль" });
+
+        var car = new Car
+        {
+            VIN = dto.Vin,
+            Brand = dto.Brand,
+            Model = dto.Model,
+            Trim = dto.Trim ?? "",
+            Year = dto.Year,
+            Mileage = dto.Mileage,
+            Price = dto.Price,
+            Status = CarStatus.Available
+        };
+        if (!string.IsNullOrWhiteSpace(dto.PhotoUrl))
+            car.Images.Add(new CarImage { Url = dto.PhotoUrl, IsMain = true });
+
+        try
+        {
+            var created = await _cars.CreateAsync(car);
+            return Ok(new { created.Id });
+        }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+    }
+    [HttpPut("{id:int}/details")]
+    public async Task<IActionResult> UpdateDetails(int id, [FromBody] UpdateCarDto dto)
+    {
+        try
+        {
+            var ok = await _cars.UpdateDetailsAsync(id, dto.Brand, dto.Model, dto.Trim ?? "", dto.Year,
+                                                    dto.Mileage, dto.Price, dto.Status, dto.PhotoUrl);
+            return ok ? NoContent() : NotFound();
+        }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
 }

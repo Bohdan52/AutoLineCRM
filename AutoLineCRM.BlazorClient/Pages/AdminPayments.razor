@@ -1,0 +1,132 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Manager,Administrator")]
+@page "/admin-payments"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
+
+<PageTitle>Платежі</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-2">Платежі</MudText>
+<MudText Typo="Typo.body2" Color="Color.Secondary" Class="mb-4">
+    Платежі карткою й переказом чекають вашого затвердження. Оплату готівкою в салоні підтверджуйте після отримання грошей.
+</MudText>
+
+@if (payments == null)
+{
+    <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+}
+else if (!payments.Any())
+{
+    <MudAlert Severity="Severity.Info">Платежів поки немає.</MudAlert>
+}
+else
+{
+    <MudTable Items="@payments" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2">
+        <HeaderContent>
+            <MudTh>ID</MudTh>
+            <MudTh>Заявка</MudTh>
+            <MudTh>Клієнт</MudTh>
+            <MudTh>Сума</MudTh>
+            <MudTh>Спосіб</MudTh>
+            <MudTh>Деталі</MudTh>
+            <MudTh>Статус</MudTh>
+            <MudTh>Дата</MudTh>
+            <MudTh>Дія</MudTh>
+        </HeaderContent>
+        <RowTemplate>
+            <MudTd DataLabel="ID">@context.Id</MudTd>
+            <MudTd DataLabel="Заявка">#@context.RequestId</MudTd>
+            <MudTd DataLabel="Клієнт">#@context.ClientId</MudTd>
+            <MudTd DataLabel="Сума">@context.Amount.ToString("N0") $</MudTd>
+            <MudTd DataLabel="Спосіб">@MethodName(context.Method)</MudTd>
+            <MudTd DataLabel="Деталі">
+                @context.ProviderName
+                @if (!string.IsNullOrEmpty(context.TransactionId))
+                {
+                    <br /><span style="font-size:.75rem;color:#64748b;">@context.TransactionId</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Статус">
+                <MudChip T="string" Size="Size.Small" Color="@StatusColor(context)">@StatusName(context)</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Дата">@context.DateTime.ToLocalTime().ToString("g")</MudTd>
+            <MudTd DataLabel="Дія">
+                @if (NeedsApproval(context))
+                {
+                    <MudButton Variant="Variant.Filled" Color="Color.Success" Size="Size.Small"
+                               OnClick="() => Approve(context.Id)">
+                        @(context.Method == 0 ? "Підтвердити отримання" : "Затвердити платіж")
+                    </MudButton>
+                }
+            </MudTd>
+        </RowTemplate>
+    </MudTable>
+}
+
+@code {
+    private List<PaymentDto>? payments;
+
+    protected override async Task OnInitializedAsync() => await Load();
+
+    private async Task Load()
+    {
+        try
+        {
+            payments = await Http.GetFromJsonAsync<List<PaymentDto>>("https://localhost:7029/api/requests/payments");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+            payments = new();
+        }
+    }
+
+    private async Task Approve(int id)
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        var managerId = state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value;
+
+        var response = await Http.PostAsync($"https://localhost:7029/api/requests/payments/{id}/confirm?managerId={managerId}", null);
+        if (response.IsSuccessStatusCode)
+        {
+            Snackbar.Add("Платіж затверджено, заявку позначено як оплачену", Severity.Success);
+            await Load();
+        }
+        else
+        {
+            Snackbar.Add("Не вдалося затвердити платіж", Severity.Error);
+        }
+    }
+
+    // Статус заявки 2 = Підтверджено; 3 = Оплачено
+    private static bool NeedsApproval(PaymentDto p) =>
+        (p.Method == 0 && p.Status == 0) ||
+        (p.Method != 0 && p.Status == 1 && p.RequestStatus == 2);
+
+    private static string MethodName(int m) => m switch { 0 => "Готівка в салоні", 1 => "Картка", 2 => "Банківський переказ", 3 => "PayPal", _ => "?" };
+
+    private static string StatusName(PaymentDto p) =>
+        NeedsApproval(p) ? (p.Method == 0 ? "Очікує оплату в салоні" : "Списано, чекає затвердження")
+        : p.Status switch { 1 => "Оплачено", 2 => "Відхилено", 3 => "Повернено", _ => "Очікує" };
+
+    private static Color StatusColor(PaymentDto p) =>
+        NeedsApproval(p) ? Color.Warning
+        : p.Status switch { 1 => Color.Success, 2 => Color.Error, _ => Color.Default };
+
+    public class PaymentDto
+    {
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public int ClientId { get; set; }
+        public decimal Amount { get; set; }
+        public int Method { get; set; }
+        public int Status { get; set; }
+        public string? TransactionId { get; set; }
+        public string? ProviderName { get; set; }
+        public DateTime DateTime { get; set; }
+        public int RequestStatus { get; set; }
+    }
+}

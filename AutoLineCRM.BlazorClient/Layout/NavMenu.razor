@@ -1,27 +1,33 @@
 ﻿@using Microsoft.AspNetCore.Components.Authorization
 @inject D20Tek.Blazor.BrowserStorage.ILocalStorageService Storage
 @inject NavigationManager NavManager
+@inject IDialogService Dialog
+@inject AuthenticationStateProvider AuthProvider
 
 <MudNavMenu>
     <MudNavLink Href="/" Match="NavLinkMatch.All" Icon="@Icons.Material.Filled.Home">Головна</MudNavLink>
     <MudNavLink Href="/catalog" Icon="@Icons.Material.Filled.DirectionsCar">Каталог авто</MudNavLink>
-    <MudNavLink Href="/my-requests" Icon="@Icons.Material.Filled.ListAlt">Мої заявки</MudNavLink>
 
-    @* Блок, який бачать ТІЛЬКИ менеджери та адміністратори *@
+    <AuthorizeView Roles="Client">
+        <MudNavLink Href="/my-requests" Icon="@Icons.Material.Filled.ShoppingCart">Мій кошик</MudNavLink>
+    </AuthorizeView>
+
     <AuthorizeView Roles="Manager,Administrator">
-        <MudNavLink Href="/admin-requests" Icon="@Icons.Material.Filled.AdminPanelSettings">Панель менеджера</MudNavLink>
+        <MudNavLink Href="/admin-requests" Icon="@Icons.Material.Filled.AdminPanelSettings">Заявки</MudNavLink>
+        <MudNavLink Href="/admin-payments" Icon="@Icons.Material.Filled.Payments">Платежі</MudNavLink>
+        <MudNavLink Href="/admin-cars" Icon="@Icons.Material.Filled.AddCircle">Додати авто</MudNavLink>
     </AuthorizeView>
 
     <br />
     <MudDivider />
 
-    @* Блок входу/виходу *@
     <AuthorizeView>
         <Authorized>
-            <MudNavLink OnClick="Logout" Icon="@Icons.Material.Filled.Logout">Вийти</MudNavLink>
+            <MudNavLink OnClick="Logout" Icon="@Icons.Material.Filled.Logout">Вийти (@context.User.Identity?.Name)</MudNavLink>
         </Authorized>
         <NotAuthorized>
             <MudNavLink Href="/login" Icon="@Icons.Material.Filled.Login">Вхід</MudNavLink>
+            <MudNavLink Href="/register" Icon="@Icons.Material.Filled.PersonAdd">Реєстрація</MudNavLink>
         </NotAuthorized>
     </AuthorizeView>
 </MudNavMenu>
@@ -29,8 +35,29 @@
 @code {
     private async Task Logout()
     {
-        
-        await Storage.RemoveAsync("authToken");
-        NavManager.NavigateTo("/login", forceLoad: true);
+        bool? confirmed = false;
+        try
+        {
+            confirmed = await Dialog.ShowMessageBoxAsync(
+                "Вихід",
+                "Ви точно хочете вийти?",
+                yesText: "Так, вийти",
+                cancelText: "Скасувати");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine(ex);
+        }
+
+        if (confirmed != true) return;
+
+        try { await Storage.RemoveAsync("authToken"); }
+        catch (Exception ex) { Console.WriteLine(ex); }
+
+        try { await Storage.RemoveAsync("rememberDevice"); }
+        catch (Exception ex) { Console.WriteLine(ex); }
+
+        ((CustomAuthStateProvider)AuthProvider).NotifyUserLogout();
+        NavManager.NavigateTo("/login");
     }
 }

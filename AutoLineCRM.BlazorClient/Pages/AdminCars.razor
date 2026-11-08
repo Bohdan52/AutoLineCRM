@@ -1,0 +1,120 @@
+﻿@using Microsoft.AspNetCore.Authorization
+@attribute [Authorize(Roles = "Manager,Administrator")]
+@page "/admin-cars"
+@inject HttpClient Http
+@inject ISnackbar Snackbar
+@using MudBlazor
+
+<PageTitle>Додати авто</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Додати автомобіль</MudText>
+
+<MudPaper Class="pa-6" Elevation="2" Style="max-width:720px;">
+    <MudGrid Spacing="3">
+        <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="brand" Label="Марка" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="model" Label="Модель" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="trim" Label="Комплектація" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="vin" Label="VIN-код" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="year" Label="Рік" Variant="Variant.Outlined" Min="1950" Max="2100" /></MudItem>
+        <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="mileage" Label="Пробіг, км" Variant="Variant.Outlined" Min="0" /></MudItem>
+        <MudItem xs="12" sm="4"><MudNumericField T="decimal" @bind-Value="price" Label="Ціна, $" Variant="Variant.Outlined" Min="0" /></MudItem>
+        <MudItem xs="12"><MudTextField T="string" @bind-Value="photo" Label="Посилання на фото (URL)" Variant="Variant.Outlined" /></MudItem>
+        <MudItem xs="12">
+            <MudText Typo="Typo.subtitle2" Class="mb-1">Або виберіть файл з комп'ютера</MudText>
+            <InputFile OnChange="OnPhotoSelected" accept="image/*" />
+
+            @if (!string.IsNullOrEmpty(photoData))
+            {
+                <div class="mt-3 d-flex align-center" style="gap:12px;">
+                    <img src="@photoData" alt="" style="width:160px;height:100px;object-fit:cover;border-radius:8px;" />
+                    <MudButton Variant="Variant.Text" Color="Color.Error" OnClick="@(() => photoData = "")">Прибрати фото</MudButton>
+                </div>
+            }
+        </MudItem>
+        <MudItem xs="12">
+            <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Large" Disabled="@saving" OnClick="SaveAsync">
+                @(saving ? "Збереження..." : "Додати авто")
+            </MudButton>
+        </MudItem>
+    </MudGrid>
+</MudPaper>
+
+@code {
+    private string brand = "", model = "", trim = "", vin = "", photo = "";
+    private int year = DateTime.Now.Year, mileage;
+    private decimal price;
+    private bool saving;
+    private string photoData = "";
+
+    private async Task OnPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        if (!file.ContentType.StartsWith("image/"))
+        {
+            Snackbar.Add("Оберіть файл зображення", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            // Зменшуємо фото в браузері, щоб воно не було завеликим
+            var resized = await file.RequestImageFileAsync("image/jpeg", 900, 600);
+            using var stream = resized.OpenReadStream(3 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            photoData = $"data:image/jpeg;base64,{Convert.ToBase64String(ms.ToArray())}";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Не вдалося прочитати фото: {ex.Message}", Severity.Error);
+        }
+    }
+
+    private async Task SaveAsync()
+    {
+        if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(model) ||
+            string.IsNullOrWhiteSpace(vin) || price <= 0)
+        {
+            Snackbar.Add("Заповніть марку, модель, VIN і ціну", Severity.Warning);
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var dto = new
+            {
+                Vin = vin.Trim(),
+                Brand = brand.Trim(),
+                Model = model.Trim(),
+                Trim = trim.Trim(),
+                Year = year,
+                Mileage = mileage,
+                Price = price,
+                PhotoUrl = !string.IsNullOrEmpty(photoData) ? photoData : (string.IsNullOrWhiteSpace(photo) ? null : photo.Trim())
+            };
+
+            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/cars/new", dto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add($"{brand} {model} додано в каталог", Severity.Success);
+                brand = model = trim = vin = photo = photoData = "";
+                mileage = 0;
+                price = 0;
+            }
+            else
+            {
+                Snackbar.Add($"Помилка: {await response.Content.ReadAsStringAsync()}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Помилка: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
+}

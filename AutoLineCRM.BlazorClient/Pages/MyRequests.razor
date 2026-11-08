@@ -1,95 +1,175 @@
 ﻿@page "/my-requests"
 @inject HttpClient Http
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
 @using MudBlazor
 
-<MudText Typo="Typo.h4" Class="mb-4">Мої заявки</MudText>
+<PageTitle>Мій кошик</PageTitle>
+<MudText Typo="Typo.h4" Class="mb-4">Мій кошик</MudText>
 
-@if (requests == null)
+@if (!loaded)
 {
     <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
 }
-else if (!requests.Any())
+else if (clientId == null)
 {
-    <MudAlert Severity="Severity.Info">У вас ще немає заявок.</MudAlert>
+    <MudAlert Severity="Severity.Info">
+        Щоб користуватися кошиком, <MudLink Href="/login">увійдіть</MudLink> або <MudLink Href="/register">зареєструйтесь</MudLink>.
+    </MudAlert>
+}
+else if (!Active.Any())
+{
+    <MudAlert Severity="Severity.Info">Кошик порожній. Додайте авто з <MudLink Href="/catalog">каталогу</MudLink>.</MudAlert>
 }
 else
 {
-    <MudTable Items="@requests" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2">
+    <MudTable Items="@Active" Hover="true" Breakpoint="Breakpoint.Sm" Elevation="2">
         <HeaderContent>
-            <MudTh>ID</MudTh>
-            <MudTh>Авто (ID)</MudTh>
-            <MudTh>Дата створення</MudTh>
+            <MudTh>Авто</MudTh>
+            <MudTh>Ціна</MudTh>
             <MudTh>Статус</MudTh>
-            <MudTh>Дія</MudTh>
+            <MudTh>Спосіб оплати</MudTh>
+            <MudTh>Оплата</MudTh>
+            <MudTh>Дії</MudTh>
         </HeaderContent>
         <RowTemplate>
-            <MudTd DataLabel="ID">@context.Id</MudTd>
-            <MudTd DataLabel="Авто">#@context.CarId</MudTd>
-            <MudTd DataLabel="Дата">@context.CreatedAt.ToString("g")</MudTd>
-            <MudTd DataLabel="Статус">
-                <MudChip T="string" Size="Size.Small" Color="@(context.Status == 3 ? Color.Success : Color.Info)">@GetStatusName(context.Status)</MudChip>
+            <MudTd DataLabel="Авто">
+                <div class="d-flex align-center" style="gap:12px;">
+                    @if (!string.IsNullOrEmpty(PhotoOf(context)))
+                    {
+                        <img src="@PhotoOf(context)" alt="" style="width:72px;height:48px;object-fit:cover;border-radius:6px;"
+                             onerror="this.style.display='none'" />
+                    }
+                    <div>
+                        <b>@NameOf(context)</b><br />
+                        <span style="font-size:.8rem;color:#64748b;">Заявка #@context.Id, @context.CreatedAt.ToString("g")</span>
+                    </div>
+                </div>
             </MudTd>
-            <MudTd DataLabel="Дія">
-                @if (context.Status == 2)
+            <MudTd DataLabel="Ціна">@PriceOf(context).ToString("N0") $</MudTd>
+            <MudTd DataLabel="Статус">
+                <MudChip T="string" Size="Size.Small" Color="@(context.Status == 3 ? Color.Success : Color.Info)">@StatusName(context.Status)</MudChip>
+            </MudTd>
+            <MudTd DataLabel="Спосіб оплати">
+                @if (PaymentFor(context) is { } paid)
+                {
+                    @MethodName(paid.Method)
+                }
+                else if (context.Status == 2)
+                {
+                    <MudSelect T="int" Value="@MethodOf(context)" ValueChanged="@((int v) => SetMethod(context.Id, v))"
+                               Dense="true" Margin="Margin.Dense" Variant="Variant.Outlined" Style="min-width:200px;">
+                        <MudSelectItem T="int" Value="1">Банківська картка</MudSelectItem>
+                        <MudSelectItem T="int" Value="0">Готівка в салоні</MudSelectItem>
+                        <MudSelectItem T="int" Value="2">Банківський переказ</MudSelectItem>
+                    </MudSelect>
+                }
+                else
+                {
+                    <span>—</span>
+                }
+            </MudTd>
+            <MudTd DataLabel="Оплата">@PaymentText(context)</MudTd>
+            <MudTd DataLabel="Дії">
+                @if (context.Status == 2 && PaymentFor(context) == null)
                 {
                     <MudButton Variant="Variant.Filled" Color="Color.Primary" Size="Size.Small"
                                OnClick="() => StartPayment(context)">Оплатити</MudButton>
                 }
+                @if (PaymentFor(context) is { } pay)
+                {
+                    <a href="@InvoiceUri(context, pay)" download="rahunok-@(pay.Id).html">Рахунок</a>
+                }
+                @if (context.Status <= 1)
+                {
+                    <MudButton Variant="Variant.Text" Color="Color.Error" Size="Size.Small"
+                               OnClick="() => Remove(context)">Прибрати</MudButton>
+                }
             </MudTd>
         </RowTemplate>
     </MudTable>
+
+    <MudText Typo="Typo.h6" Class="mt-3">Разом у кошику: @Active.Sum(PriceOf).ToString("N0") $</MudText>
 }
 
 @if (selected != null)
 {
     <MudPaper Class="pa-4 mt-4" Elevation="3">
-        <MudText Typo="Typo.h6" Class="mb-2">Оплата заявки #@selected.Id</MudText>
+        <MudText Typo="Typo.h6" Class="mb-2">Оплата: @NameOf(selected)</MudText>
+        <MudText Class="mb-3">Сума до сплати: <b>@PriceOf(selected).ToString("N0") $</b></MudText>
 
-        @if (price == null)
+        <MudSelect T="int" @bind-Value="method" Label="Спосіб оплати" Class="mb-3">
+            <MudSelectItem T="int" Value="1">Банківська картка</MudSelectItem>
+            <MudSelectItem T="int" Value="0">Готівка в салоні</MudSelectItem>
+            <MudSelectItem T="int" Value="2">Банківський переказ</MudSelectItem>
+        </MudSelect>
+
+        @if (method == 1)
         {
-            <MudProgressCircular Color="Color.Primary" Indeterminate="true" />
+            <MudTextField T="string" @bind-Value="cardNumber" Label="Номер картки (імітація)" Class="mb-3" />
+        }
+
+        @if (method == 0)
+        {
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                Оплата відбудеться в салоні. Менеджер підтвердить отримання коштів, після чого заявка стане «Оплачено».
+            </MudAlert>
         }
         else
         {
-            <MudText Class="mb-3">Сума до сплати: <b>@price.Value.ToString("N0") грн</b></MudText>
-
-            <MudSelect T="int" @bind-Value="method" Label="Спосіб оплати" Class="mb-3">
-                <MudSelectItem T="int" Value="1">Банківська картка</MudSelectItem>
-                <MudSelectItem T="int" Value="0">Готівка в салоні</MudSelectItem>
-                <MudSelectItem T="int" Value="2">Банківський переказ</MudSelectItem>
-            </MudSelect>
-
-            @if (method == 1)
-            {
-                <MudTextField T="string" @bind-Value="cardToken" Label="Номер картки (імітація)" Class="mb-3" />
-            }
-
-            <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@paying" OnClick="PayAsync">
-                @(paying ? "Обробка..." : "Підтвердити оплату")
-            </MudButton>
-            <MudButton Variant="Variant.Text" Class="ml-2" OnClick="Cancel">Скасувати</MudButton>
+            <MudAlert Severity="Severity.Info" Class="mb-3">
+                Суму буде списано одразу й сформовано рахунок. Платіж затверджує менеджер салону, після чого заявка стане «Оплачено».
+            </MudAlert>
         }
+
+        <MudButton Variant="Variant.Filled" Color="Color.Success" Disabled="@paying" OnClick="PayAsync">
+            @(paying ? "Обробка..." : "Підтвердити")
+        </MudButton>
+        <MudButton Variant="Variant.Text" Class="ml-2" OnClick="() => selected = null">Скасувати</MudButton>
     </MudPaper>
 }
 
 @code {
     private const string Api = "https://localhost:7029";
 
-    private List<RequestDto>? requests;
+    private int? clientId;
+    private string userName = "";
+    private bool loaded;
+    private List<RequestDto> requests = new();
+    private List<PaymentDto> payments = new();
+    private Dictionary<int, CarDto> cars = new();
+    private Dictionary<int, int> methods = new();
+
     private RequestDto? selected;
-    private decimal? price;
     private int method = 1;
-    private string cardToken = "";
+    private string cardNumber = "";
     private bool paying;
 
-    protected override async Task OnInitializedAsync() => await LoadAsync();
+    private List<RequestDto> Active => requests.Where(r => r.Status != 5).ToList();
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        userName = state.User.Identity?.Name ?? "";
+
+        if (int.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var id))
+        {
+            clientId = id;
+            await LoadAsync();
+        }
+        loaded = true;
+    }
 
     private async Task LoadAsync()
     {
         try
         {
-            requests = await Http.GetFromJsonAsync<List<RequestDto>>($"{Api}/api/requests/client/1");
+            requests = await Http.GetFromJsonAsync<List<RequestDto>>($"{Api}/api/requests/client/{clientId}") ?? new();
+            payments = await Http.GetFromJsonAsync<List<PaymentDto>>($"{Api}/api/requests/payments?clientId={clientId}") ?? new();
+            var list = await Http.GetFromJsonAsync<List<CarDto>>($"{Api}/api/cars?size=100") ?? new();
+            cars = list.ToDictionary(c => c.Id);
         }
         catch (Exception ex)
         {
@@ -97,52 +177,84 @@ else
         }
     }
 
-    private async Task StartPayment(RequestDto request)
-    {
-        selected = request;
-        price = null;
-        cardToken = "";
-        method = 1;
+    private int MethodOf(RequestDto r) => methods.TryGetValue(r.Id, out var m) ? m : 1;
+    private void SetMethod(int requestId, int value) => methods[requestId] = value;
 
-        try
+    private void StartPayment(RequestDto r)
+    {
+        selected = r;
+        method = MethodOf(r);
+        cardNumber = "";
+    }
+
+    private async Task Remove(RequestDto r)
+    {
+        var response = await Http.PutAsJsonAsync($"{Api}/api/requests/{r.Id}/status", new { Status = 5 });
+        if (response.IsSuccessStatusCode)
         {
-            var car = await Http.GetFromJsonAsync<CarDto>($"{Api}/api/cars/{request.CarId}");
-            price = car?.Price ?? 0;
+            Snackbar.Add("Авто прибрано з кошика", Severity.Info);
+            await LoadAsync();
         }
-        catch (Exception ex)
+        else
         {
-            Snackbar.Add($"Не вдалося отримати ціну авто: {ex.Message}", Severity.Error);
-            selected = null;
+            Snackbar.Add("Не вдалося прибрати авто", Severity.Error);
         }
     }
 
-    private void Cancel() => selected = null;
-
     private async Task PayAsync()
     {
-        if (selected == null || price == null) return;
-        paying = true;
+        if (selected == null) return;
 
+        var amount = PriceOf(selected);
+        var digits = new string(cardNumber.Where(char.IsDigit).ToArray());
+
+        if (method == 1 && digits.Length < 13)
+        {
+            Snackbar.Add("Введіть коректний номер картки", Severity.Warning);
+            return;
+        }
+
+        paying = true;
         try
         {
-            var dto = new { RequestId = selected.Id, Amount = price.Value, Method = method, Currency = "UAH", CardToken = cardToken };
-            var response = await Http.PostAsJsonAsync($"{Api}/api/payments", dto);
+            string? transactionId = null;
+            string? provider = null;
 
-            if (!response.IsSuccessStatusCode)
+            // Готівка в салоні: гроші ще не отримано, тому платіжний шлюз не викликаємо
+            if (method != 0)
             {
-                var error = await response.Content.ReadFromJsonAsync<ErrorDto>();
-                Snackbar.Add(error?.Error ?? "Оплату відхилено", Severity.Error);
+                var charge = await Http.PostAsJsonAsync($"{Api}/api/payments",
+                    new { RequestId = selected.Id, Amount = amount, Method = method, Currency = "USD", CardToken = method == 1 ? digits : "" });
+
+                if (!charge.IsSuccessStatusCode)
+                {
+                    var err = await charge.Content.ReadFromJsonAsync<ErrorDto>();
+                    Snackbar.Add(err?.Error ?? "Оплату відхилено", Severity.Error);
+                    return;
+                }
+
+                var ok = await charge.Content.ReadFromJsonAsync<ChargeDto>();
+                transactionId = ok?.TransactionId;
+                provider = ok?.Provider;
+
+                // Зберігаємо лише останні 4 цифри картки
+                if (method == 1) provider = $"{provider} •••• {digits[^4..]}";
+            }
+
+            var record = await Http.PostAsJsonAsync($"{Api}/api/requests/{selected.Id}/payments",
+                new { Method = method, Amount = amount, TransactionId = transactionId, ProviderName = provider });
+
+            if (!record.IsSuccessStatusCode)
+            {
+                var err = await record.Content.ReadFromJsonAsync<ErrorDto>();
+                Snackbar.Add(err?.Error ?? "Не вдалося зберегти платіж", Severity.Error);
                 return;
             }
 
-            var statusResponse = await Http.PutAsJsonAsync($"{Api}/api/requests/{selected.Id}/status", new { Status = 3 });
-            if (!statusResponse.IsSuccessStatusCode)
-            {
-                Snackbar.Add("Оплату проведено, але статус заявки не оновився", Severity.Warning);
-                return;
-            }
+            Snackbar.Add(method == 0
+                ? "Оплату в салоні зафіксовано. Очікуємо підтвердження менеджера."
+                : "Суму списано, рахунок сформовано. Очікуємо затвердження менеджера.", Severity.Success);
 
-            Snackbar.Add("Оплата пройшла успішно", Severity.Success);
             selected = null;
             await LoadAsync();
         }
@@ -156,7 +268,64 @@ else
         }
     }
 
-    private string GetStatusName(int status) => status switch
+    private PaymentDto? PaymentFor(RequestDto r) =>
+        payments.FirstOrDefault(p => p.RequestId == r.Id && (p.Status == 0 || p.Status == 1));
+
+    private string PaymentText(RequestDto r)
+    {
+        var p = PaymentFor(r);
+        if (p == null) return "—";
+
+        var m = MethodName(p.Method);
+        if (r.Status >= 3) return $"{m}: оплачено";
+
+        return p.Method == 0
+            ? "Оплата в салоні: очікує підтвердження менеджера"
+            : $"{m}: сплачено, очікує затвердження менеджера";
+    }
+
+    private string InvoiceUri(RequestDto r, PaymentDto p)
+    {
+        string E(string? s) => System.Net.WebUtility.HtmlEncode(s ?? "");
+
+        var html = $$"""
+            <!DOCTYPE html>
+            <html lang="uk"><head><meta charset="utf-8"><title>Рахунок AL-{{p.Id:D6}}</title>
+            <style>
+              body { font-family: Arial, sans-serif; max-width: 720px; margin: 40px auto; color: #0f172a; }
+              h1 { color: #1d4ed8; }
+              table { width: 100%; border-collapse: collapse; margin: 24px 0; }
+              td, th { border: 1px solid #cbd5e1; padding: 10px; text-align: left; }
+              th { background: #f1f5f9; }
+              .total { font-size: 1.3rem; font-weight: bold; text-align: right; }
+              .muted { color: #64748b; font-size: .9rem; }
+            </style></head><body>
+            <h1>AutoLine. Рахунок № AL-{{p.Id:D6}}</h1>
+            <p class="muted">Дата: {{p.DateTime.ToLocalTime():dd.MM.yyyy HH:mm}}</p>
+            <p><b>Покупець:</b> {{E(userName)}}<br><b>Заявка:</b> №{{r.Id}}</p>
+            <table>
+              <tr><th>Автомобіль</th><th>Сума</th></tr>
+              <tr><td>{{E(NameOf(r))}}</td><td>{{p.Amount:N0}} $</td></tr>
+            </table>
+            <p><b>Спосіб оплати:</b> {{E(MethodName(p.Method))}}<br>
+               <b>Деталі:</b> {{E(p.ProviderName)}} {{E(p.TransactionId)}}<br>
+               <b>Стан:</b> {{E(PaymentText(r))}}</p>
+            <p class="total">Разом: {{p.Amount:N0}} $</p>
+            <p class="muted">Платіж затверджується менеджером салону. Щоб зберегти рахунок у PDF, скористайтесь друком у браузері.</p>
+            </body></html>
+            """;
+
+        return "data:text/html;base64," + Convert.ToBase64String(System.Text.Encoding.UTF8.GetBytes(html));
+    }
+
+    private string NameOf(RequestDto r) => cars.TryGetValue(r.CarId, out var c) ? $"{c.Brand} {c.Model} ({c.Year})" : $"Авто #{r.CarId}";
+    private decimal PriceOf(RequestDto r) => cars.TryGetValue(r.CarId, out var c) ? c.Price : 0;
+    private string? PhotoOf(RequestDto r) =>
+        cars.TryGetValue(r.CarId, out var c) ? (c.Images.FirstOrDefault(i => i.IsMain) ?? c.Images.FirstOrDefault())?.Url : null;
+
+    private static string MethodName(int m) => m switch { 0 => "Готівка в салоні", 1 => "Картка", 2 => "Банківський переказ", 3 => "PayPal", _ => "?" };
+
+    private static string StatusName(int status) => status switch
     {
         0 => "Нова",
         1 => "В обробці",
@@ -176,13 +345,39 @@ else
         public int Status { get; set; }
     }
 
-    public class CarDto
+    public class PaymentDto
     {
-        public decimal Price { get; set; }
+        public int Id { get; set; }
+        public int RequestId { get; set; }
+        public decimal Amount { get; set; }
+        public int Method { get; set; }
+        public int Status { get; set; }
+        public string? TransactionId { get; set; }
+        public string? ProviderName { get; set; }
+        public DateTime DateTime { get; set; }
     }
 
-    public class ErrorDto
+    public class CarDto
     {
-        public string? Error { get; set; }
+        public int Id { get; set; }
+        public string Brand { get; set; } = "";
+        public string Model { get; set; } = "";
+        public int Year { get; set; }
+        public decimal Price { get; set; }
+        public List<CarImageDto> Images { get; set; } = new();
     }
+
+    public class CarImageDto
+    {
+        public string Url { get; set; } = "";
+        public bool IsMain { get; set; }
+    }
+
+    public class ChargeDto
+    {
+        public string? TransactionId { get; set; }
+        public string? Provider { get; set; }
+    }
+
+    public class ErrorDto { public string? Error { get; set; } }
 }

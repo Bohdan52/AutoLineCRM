@@ -15,6 +15,7 @@
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Person"
                       Class="mb-4" />
+        
 
         <MudTextField @bind-Value="loginDto.Password"
                       Label="Пароль"
@@ -22,7 +23,8 @@
                       InputType="InputType.Password"
                       Adornment="Adornment.Start"
                       AdornmentIcon="@Icons.Material.Filled.Lock"
-                      Class="mb-6" />
+                      Class="mb-2" />
+        <MudCheckBox T="bool" @bind-Value="remember" Label="Запам'ятати цей пристрій" Color="Color.Primary" Class="mb-4" />
 
         <MudButton Variant="Variant.Filled"
                    Color="Color.Primary"
@@ -49,6 +51,7 @@
 </div>
 
 @code {
+    private bool remember;
     private LoginDto loginDto = new();
     private string? message;
     private Severity alertColor = Severity.Info;
@@ -81,6 +84,7 @@
                 if (result?.Token != null)
                 {
                     await Storage.SetAsync("authToken", result.Token);
+                    await Storage.SetAsync("rememberDevice", remember ? "true" : "false");
                     ((CustomAuthStateProvider)AuthStateProvider).NotifyUserAuthentication(result.Token);
 
                     message = "Успіх! Ви увійшли.";

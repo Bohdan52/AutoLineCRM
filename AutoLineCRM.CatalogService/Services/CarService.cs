@@ -71,4 +71,37 @@ public class CarService
         await _db.SaveChangesAsync();
         return true;
     }
+    public async Task<bool> UpdateDetailsAsync(int id, string brand, string model, string trim, int year,
+                                           int mileage, decimal price, CarStatus status, string? photoUrl)
+    {
+        var car = await _db.Cars.Include(c => c.Images).FirstOrDefaultAsync(c => c.Id == id);
+        if (car is null) return false;
+
+        if (string.IsNullOrWhiteSpace(brand) || string.IsNullOrWhiteSpace(model))
+            throw new ArgumentException("Вкажіть марку та модель");
+        if (price <= 0)
+            throw new ArgumentException("Ціна має бути більшою за нуль");
+        if (!Enum.IsDefined(status))
+            throw new ArgumentException("Невідомий статус авто");
+
+        car.Brand = brand;
+        car.Model = model;
+        car.Trim = trim;
+        car.Year = year;
+        car.Mileage = mileage;
+        car.Price = price;
+        car.Status = status;
+
+        if (!string.IsNullOrWhiteSpace(photoUrl))
+        {
+            var main = car.Images.FirstOrDefault(i => i.IsMain) ?? car.Images.FirstOrDefault();
+            if (main != null)
+                main.Url = photoUrl;
+            else
+                car.Images.Add(new CarImage { Url = photoUrl, IsMain = true });
+        }
+
+        await _db.SaveChangesAsync();
+        return true;
+    }
 }

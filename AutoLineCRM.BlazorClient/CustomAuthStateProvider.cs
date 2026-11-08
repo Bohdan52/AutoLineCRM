@@ -13,10 +13,27 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
     public override async Task<AuthenticationState> GetAuthenticationStateAsync()
     {
+        var anonymous = new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+
         var result = await _storage.GetAsync<string>("authToken");
 
         if (!result.IsSuccess || string.IsNullOrWhiteSpace(result.Value))
-            return new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+            return anonymous;
+
+        try
+        {
+            var jwt = new JwtSecurityTokenHandler().ReadJwtToken(result.Value);
+            if (jwt.ValidTo < DateTime.UtcNow)
+            {
+                await _storage.RemoveAsync("authToken");
+                return anonymous;
+            }
+        }
+        catch
+        {
+            await _storage.RemoveAsync("authToken");
+            return anonymous;
+        }
 
         return CreateAuthenticationState(result.Value);
     }
@@ -25,6 +42,11 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
     {
         var authState = CreateAuthenticationState(token);
         NotifyAuthenticationStateChanged(Task.FromResult(authState));
+    }
+    public void NotifyUserLogout()
+    {
+        var anonymous = new AuthenticationState(new ClaimsPrincipal(new ClaimsIdentity()));
+        NotifyAuthenticationStateChanged(Task.FromResult(anonymous));
     }
 
     private AuthenticationState CreateAuthenticationState(string token)
@@ -36,17 +58,16 @@ public class CustomAuthStateProvider : AuthenticationStateProvider
 
         foreach (var claim in jwt.Claims)
         {
-            // Якщо назва клейму містить слово "role" (незалежно від регістру) - робимо його стандартним Role
-            if (claim.Type.Equals("role", StringComparison.OrdinalIgnoreCase) ||
-                claim.Type == ClaimTypes.Role ||
-                claim.Type.EndsWith("/role"))
-            {
-                claims.Add(new Claim(ClaimTypes.Role, claim.Value));
-            }
-            else
-            {
-                claims.Add(new Claim(claim.Type, claim.Value));
-            }
+            var type = claim.Type;
+
+            if (type.Equals("role", StringComparison.OrdinalIgnoreCase) || type == ClaimTypes.Role || type.EndsWith("/role"))
+                type = ClaimTypes.Role;
+            else if (type == "nameid" || type.EndsWith("/nameidentifier"))
+                type = ClaimTypes.NameIdentifier;
+            else if (type == "unique_name" || type.EndsWith("/name"))
+                type = ClaimTypes.Name;
+
+            claims.Add(new Claim(type, claim.Value));
         }
 
         var identity = new ClaimsIdentity(claims, "jwt", ClaimTypes.Name, ClaimTypes.Role);

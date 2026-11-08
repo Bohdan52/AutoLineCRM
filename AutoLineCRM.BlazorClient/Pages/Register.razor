@@ -1,0 +1,90 @@
+﻿@page "/register"
+@inject HttpClient Http
+@inject D20Tek.Blazor.BrowserStorage.ILocalStorageService Storage
+@inject AuthenticationStateProvider AuthStateProvider
+@inject NavigationManager Nav
+@using MudBlazor
+
+<PageTitle>Реєстрація</PageTitle>
+
+<div class="d-flex justify-center align-center" style="min-height: 60vh;">
+    <MudPaper Elevation="6" Class="pa-8 rounded-lg" Width="440px">
+        <MudText Typo="Typo.h4" Align="Align.Center" Class="mb-6" Color="Color.Primary">Реєстрація</MudText>
+
+        <MudTextField @bind-Value="fullName" Label="Ім'я та прізвище" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="email" Label="Електронна пошта" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="phone" Label="Телефон" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="login" Label="Логін" Variant="Variant.Outlined" Class="mb-3" />
+        <MudTextField @bind-Value="password" Label="Пароль" InputType="InputType.Password" Variant="Variant.Outlined" Class="mb-5" />
+
+        <MudButton Variant="Variant.Filled" Color="Color.Primary" FullWidth="true" Size="Size.Large"
+                   Disabled="@loading" OnClick="RegisterAsync">
+            @(loading ? "Зачекайте..." : "Створити акаунт")
+        </MudButton>
+
+        @if (error != null)
+        {
+            <MudAlert Severity="Severity.Error" Class="mt-4">@error</MudAlert>
+        }
+        <MudCheckBox T="bool" @bind-Value="remember" Label="Запам'ятати цей пристрій" Color="Color.Primary" Class="mb-4" />
+        <MudText Typo="Typo.body2" Align="Align.Center" Class="mt-4">
+            Вже є акаунт? <MudLink Href="/login">Увійти</MudLink>
+        </MudText>
+    </MudPaper>
+</div>
+
+@code {
+	private bool remember;
+    private string fullName = "", email = "", phone = "", login = "", password = "";
+    private string? error;
+    private bool loading;
+
+    private async Task RegisterAsync()
+    {
+        error = null;
+
+        if (string.IsNullOrWhiteSpace(login) || string.IsNullOrWhiteSpace(password) ||
+            string.IsNullOrWhiteSpace(email) || string.IsNullOrWhiteSpace(fullName))
+        {
+            error = "Заповніть ім'я, пошту, логін і пароль";
+            return;
+        }
+
+        loading = true;
+        try
+        {
+            // Role = 0 (Client): публічна реєстрація створює лише клієнтів
+            var dto = new { Login = login, Password = password, Email = email, FullName = fullName, Phone = phone, Role = 0 };
+            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/auth/register", dto);
+
+            if (!response.IsSuccessStatusCode)
+            {
+                var body = await response.Content.ReadAsStringAsync();
+                error = $"Не вдалося зареєструватися: {body}";
+                return;
+            }
+
+            var result = await response.Content.ReadFromJsonAsync<AuthResult>();
+            if (result?.Token == null)
+            {
+                error = "Сервер не повернув токен";
+                return;
+            }
+
+            await Storage.SetAsync("authToken", result.Token);
+            await Storage.SetAsync("rememberDevice", remember ? "true" : "false");
+            ((CustomAuthStateProvider)AuthStateProvider).NotifyUserAuthentication(result.Token);
+            Nav.NavigateTo("/catalog");
+        }
+        catch (Exception ex)
+        {
+            error = $"Помилка з'єднання: {ex.Message}";
+        }
+        finally
+        {
+            loading = false;
+        }
+    }
+
+    public class AuthResult { public string Token { get; set; } = ""; }
+}

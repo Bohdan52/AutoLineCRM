@@ -1,6 +1,11 @@
 ﻿@page "/catalog"
 @inject HttpClient Http
 @inject ISnackbar Snackbar
+@inject AuthenticationStateProvider AuthProvider
+@inject NavigationManager Nav
+@using System.Security.Claims
+@using Microsoft.AspNetCore.Components.Authorization
+@using MudBlazor
 @using MudBlazor
 
 <PageTitle>Каталог авто</PageTitle>
@@ -12,6 +17,10 @@
     .car-photo img { position: absolute; inset: 0; width: 100%; height: 100%; object-fit: cover; }
     .car-badge { position: absolute; top: 10px; left: 10px; z-index: 1; }
     .car-spec { display: flex; align-items: center; gap: 4px; color: #64748b; font-size: .85rem; }
+    .car-menu { position: absolute; top: 8px; right: 8px; z-index: 2; background: rgba(255,255,255,.92); border-radius: 50%; }
+    .edit-backdrop { position: fixed; inset: 0; background: rgba(15,23,42,.55); z-index: 1150; display: flex; align-items: center; justify-content: center; padding: 16px; }
+    .edit-modal { background: #fff; border-radius: 12px; padding: 24px; width: 100%; max-width: 640px; max-height: 90vh; overflow: auto; }
+    .edit-preview { width: 100%; height: 160px; object-fit: cover; border-radius: 8px; background: #1e293b; }
 </style>
 
 <MudText Typo="Typo.h4" Class="mb-1">Каталог автомобілів</MudText>
@@ -74,6 +83,15 @@ else
                             <div class="car-badge">
                                 <MudChip T="string" Size="Size.Small" Color="@StatusColor(car.Status)" Variant="Variant.Filled">@StatusName(car.Status)</MudChip>
                             </div>
+                            @if (isManager)
+                            {
+                                <div class="car-menu">
+                                    <MudMenu Icon="@Icons.Material.Filled.MoreVert" Size="Size.Small"
+                                             AnchorOrigin="Origin.BottomRight" TransformOrigin="Origin.TopRight">
+                                        <MudMenuItem OnClick="@(() => OpenEdit(car))">Змінити інформацію</MudMenuItem>
+                                    </MudMenu>
+                                </div>
+                            }
                         </div>
 
                         <div class="pa-4" style="flex:1;">
@@ -100,13 +118,157 @@ else
         </MudGrid>
     }
 }
+@if (editing != null)
+{
+    <div class="edit-backdrop" @onclick="CloseEdit">
+        <div class="edit-modal" @onclick:stopPropagation="true">
+            <MudText Typo="Typo.h5" Class="mb-4">Редагування: @editing.Brand @editing.Model</MudText>
 
+            @if (!string.IsNullOrWhiteSpace(PreviewPhoto))
+            {
+                <img class="edit-preview mb-4" src="@PreviewPhoto" alt="" onerror="this.style.display='none'" />
+            }
+
+            <MudGrid Spacing="3">
+                <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="eBrand" Label="Марка" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="12" sm="6"><MudTextField T="string" @bind-Value="eModel" Label="Модель" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="12"><MudTextField T="string" @bind-Value="eTrim" Label="Комплектація / короткий опис" Variant="Variant.Outlined" Lines="2" /></MudItem>
+                <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="eYear" Label="Рік" Variant="Variant.Outlined" Min="1950" Max="2100" /></MudItem>
+                <MudItem xs="12" sm="4"><MudNumericField T="int" @bind-Value="eMileage" Label="Пробіг, км" Variant="Variant.Outlined" Min="0" /></MudItem>
+                <MudItem xs="12" sm="4"><MudNumericField T="decimal" @bind-Value="ePrice" Label="Ціна, $" Variant="Variant.Outlined" Min="0" /></MudItem>
+                <MudItem xs="12" sm="6">
+                    <MudSelect T="int" @bind-Value="eStatus" Label="Статус" Variant="Variant.Outlined">
+                        <MudSelectItem T="int" Value="0">В наявності</MudSelectItem>
+                        <MudSelectItem T="int" Value="2">Заброньовано</MudSelectItem>
+                        <MudSelectItem T="int" Value="1">Продано</MudSelectItem>
+                        <MudSelectItem T="int" Value="3">Архів</MudSelectItem>
+                    </MudSelect>
+                </MudItem>
+                <MudItem xs="12"><MudTextField T="string" @bind-Value="ePhoto" Label="Посилання на фото (URL)" Variant="Variant.Outlined" /></MudItem>
+                <MudItem xs="12">
+                    <MudText Typo="Typo.subtitle2" Class="mb-1">Або виберіть файл з комп'ютера</MudText>
+                    <InputFile OnChange="OnEditPhotoSelected" accept="image/*" />
+                </MudItem>
+            </MudGrid>
+
+            <div class="d-flex justify-end mt-5" style="gap:8px;">
+                <MudButton Variant="Variant.Text" OnClick="CloseEdit">Скасувати</MudButton>
+                <MudButton Variant="Variant.Filled" Color="Color.Primary" Disabled="@saving" OnClick="SaveEdit">
+                    @(saving ? "Збереження..." : "Зберегти")
+                </MudButton>
+            </div>
+        </div>
+    </div>
+}
 @code {
     private List<CarDto>? cars;
     private string search = "";
     private string brand = "";
     private string sort = "brand";
     private bool onlyAvailable;
+    private bool isManager;
+    private CarDto? editing;
+    private bool saving;
+    private string eBrand = "", eModel = "", eTrim = "", ePhoto = "";
+    private int eYear, eMileage, eStatus;
+    private decimal ePrice;
+    private string ePhotoData = "";
+    private string PreviewPhoto => !string.IsNullOrEmpty(ePhotoData) ? ePhotoData : ePhoto;
+
+    protected override async Task OnInitializedAsync()
+    {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+        isManager = state.User.IsInRole("Manager") || state.User.IsInRole("Administrator");
+
+        await LoadCars();
+    }
+
+    private async Task LoadCars()
+    {
+        try
+        {
+            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7029/api/cars?size=100");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Помилка: {ex.Message}");
+            cars ??= new();
+        }
+    }
+
+       private void OpenEdit(CarDto car)
+    {
+        editing = car;
+        eBrand = car.Brand;
+        eModel = car.Model;
+        eTrim = car.Trim;
+        eYear = car.Year;
+        eMileage = car.Mileage;
+        ePrice = car.Price;
+        eStatus = car.Status;
+
+        var current = MainImage(car) ?? "";
+        if (current.StartsWith("data:"))
+        {
+            ePhotoData = current;
+            ePhoto = "";
+        }
+        else
+        {
+            ePhotoData = "";
+            ePhoto = current;
+        }
+    }
+
+    private void CloseEdit() => editing = null;
+
+    private async Task SaveEdit()
+    {
+        if (editing == null) return;
+
+        if (string.IsNullOrWhiteSpace(eBrand) || string.IsNullOrWhiteSpace(eModel) || ePrice <= 0)
+        {
+            Snackbar.Add("Заповніть марку, модель і ціну", Severity.Warning);
+            return;
+        }
+
+        saving = true;
+        try
+        {
+            var dto = new
+            {
+                Brand = eBrand.Trim(),
+                Model = eModel.Trim(),
+                Trim = eTrim.Trim(),
+                Year = eYear,
+                Mileage = eMileage,
+                Price = ePrice,
+                Status = eStatus,
+                PhotoUrl = !string.IsNullOrEmpty(ePhotoData) ? ePhotoData : (string.IsNullOrWhiteSpace(ePhoto) ? null : ePhoto.Trim())
+            };
+
+            var response = await Http.PutAsJsonAsync($"https://localhost:7029/api/cars/{editing.Id}/details", dto);
+
+            if (response.IsSuccessStatusCode)
+            {
+                Snackbar.Add("Інформацію про авто оновлено", Severity.Success);
+                editing = null;
+                await LoadCars();
+            }
+            else
+            {
+                Snackbar.Add($"Помилка: {await response.Content.ReadAsStringAsync()}", Severity.Error);
+            }
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Помилка: {ex.Message}", Severity.Error);
+        }
+        finally
+        {
+            saving = false;
+        }
+    }
 
     private List<CarDto> Filtered
     {
@@ -133,32 +295,58 @@ else
         }
     }
 
-    protected override async Task OnInitializedAsync()
-    {
-        try
-        {
-            cars = await Http.GetFromJsonAsync<List<CarDto>>("https://localhost:7029/api/cars?size=100");
-        }
-        catch (Exception ex)
-        {
-            Console.WriteLine($"Помилка: {ex.Message}");
-            cars = new();
-        }
-    }
-
     private async Task BookCar(int carId)
     {
+        var state = await AuthProvider.GetAuthenticationStateAsync();
+
+        if (!int.TryParse(state.User.FindFirst(ClaimTypes.NameIdentifier)?.Value, out var clientId))
+        {
+            Snackbar.Add("Увійдіть або зареєструйтесь, щоб додати авто в кошик", Severity.Info);
+            Nav.NavigateTo("/login");
+            return;
+        }
+
+        if (!state.User.IsInRole("Client"))
+        {
+            Snackbar.Add("Кошик доступний лише клієнтам", Severity.Warning);
+            return;
+        }
+
         try
         {
-            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/requests", new { CarId = carId, ClientId = 1 });
+            var response = await Http.PostAsJsonAsync("https://localhost:7029/api/requests", new { CarId = carId, ClientId = clientId });
             if (response.IsSuccessStatusCode)
-                Snackbar.Add("Успішно! Заявку на авто створено.", Severity.Success);
+                Snackbar.Add("Авто додано в кошик", Severity.Success);
             else
-                Snackbar.Add("Помилка при створенні заявки.", Severity.Error);
+                Snackbar.Add("Помилка при додаванні в кошик.", Severity.Error);
         }
         catch (Exception ex)
         {
             Snackbar.Add($"Помилка: {ex.Message}", Severity.Warning);
+        }
+    }
+
+    private async Task OnEditPhotoSelected(InputFileChangeEventArgs e)
+    {
+        var file = e.File;
+
+        if (!file.ContentType.StartsWith("image/"))
+        {
+            Snackbar.Add("Оберіть файл зображення", Severity.Warning);
+            return;
+        }
+
+        try
+        {
+            var resized = await file.RequestImageFileAsync("image/jpeg", 900, 600);
+            using var stream = resized.OpenReadStream(3 * 1024 * 1024);
+            using var ms = new MemoryStream();
+            await stream.CopyToAsync(ms);
+            ePhotoData = $"data:image/jpeg;base64,{Convert.ToBase64String(ms.ToArray())}";
+        }
+        catch (Exception ex)
+        {
+            Snackbar.Add($"Не вдалося прочитати фото: {ex.Message}", Severity.Error);
         }
     }
 

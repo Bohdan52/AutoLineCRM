@@ -43,4 +43,30 @@ public class RequestsController : ControllerBase
         }
         catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
     }
+    [HttpPost("{id:int}/payments")]
+    public async Task<IActionResult> RecordPayment(int id, [FromBody] RecordPaymentDto dto)
+    {
+        try
+        {
+            var payment = await _requestService.RecordPaymentAsync(id, dto);
+            return Ok(new { payment.Id, Status = (int)payment.Status });
+        }
+        catch (KeyNotFoundException ex) { return NotFound(new { error = ex.Message }); }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+        catch (ArgumentException ex) { return BadRequest(new { error = ex.Message }); }
+    }
+
+    [HttpGet("payments")]
+    public async Task<IActionResult> GetPayments([FromQuery] int? clientId)
+        => Ok(await _requestService.GetPaymentsAsync(clientId));
+    
+    [HttpPost("payments/{paymentId:int}/confirm")]
+    public async Task<IActionResult> ConfirmPayment(int paymentId, [FromQuery] int? managerId)
+    {
+        try
+        {
+            return await _requestService.ApprovePaymentAsync(paymentId, managerId) ? Ok() : NotFound();
+        }
+        catch (InvalidOperationException ex) { return Conflict(new { error = ex.Message }); }
+    }
 }
